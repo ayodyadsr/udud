@@ -45,6 +45,25 @@ usage: udud [-x keep-invalid][-a keep-assets][-s case-sensitive][-k][-p][-W][-r]
 `-x` is the fully-raw escape hatch (structural dedup only, no cleaning).
 `-V` prints `udud: <in> -> <out>  (peak RSS <n> KB)` to stderr.
 
+## Benchmark
+
+Full benchmark, 5-tool head-to-head, and line-by-line pentester audit:
+**[ayodyadsr/udud-benchmark](https://github.com/ayodyadsr/udud-benchmark)**
+([ANALYSIS.md](https://github.com/ayodyadsr/udud-benchmark/blob/main/results/ANALYSIS.md)).
+
+apple.com waybackurls — frozen 640,399-line / 119.6 MB snapshot:
+
+| tool | output | wall | peak RSS | quality |
+|---|---|---|---|---|
+| **udud v12** | 44653 | **3.71 s** | **6.58 MB** | non-destructive — keeps 1790 `.html` + 28 `;jsessionid=` + 19 `.woa` + 624 `.js` |
+| uro | 39811 | 20.4 s | 28.4 MB | destroys `.html` & all `;jsessionid=` & redirect endpoints |
+| urldedupe | 133412 | 5.2 s | 343 MB | barely dedupes (3× the lines); 52× the RAM |
+| urless | 36335 | 91.4 s | 39 MB | blacklist destroys blog/news + `.html` + `;jsessionid=` |
+| uddup | 0 | killed @300 s | — | O(n²) — no output even at a 30-min cap |
+
+Fastest, lowest-RAM (constant ~6.6 MB single-pass), **and** the only
+non-destructive tool. *best ≠ fewest lines.*
+
 ## License
 
 GNU Affero General Public License v3.0 — see [LICENSE](LICENSE).
