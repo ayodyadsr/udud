@@ -53,3 +53,10 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# udud: compiled binaries (build with the cc line in README) + local
+# analysis/recon data (not source - kept out of the public repo)
+/udud
+/runstat
+/nuro
+results/
