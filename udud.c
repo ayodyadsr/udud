@@ -1,6 +1,84 @@
-/* udud v12 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
+/* udud v14 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
  *
- * v12: real per-line pentester audit on apple.com gau.txt + waybackurls.txt
+ * v14: published de-identified Q1 re-benchmark (D_example_*) hand-audited
+ *      udud's per-cell lost lines line by line. The de-identified gau
+ *      corpus exposed one REAL destruction that v13 was making and the
+ *      v13 AUDIT.md had mis-classified: the embedded-domain spam gate
+ *      destroyed qeif.tv.example.com/qeif/p1/dc/pqawjqix (de-id form
+ *      qeif.tv.example.com/qeif/p1/dc/pqawjqix), a genuine authenticated
+ *      endpoint, falsifying the "no authenticated endpoint destroyed"
+ *      contract. Fix at source, still strictly single-pass / NO buffering:
+ *        - host_embeds_domain() identifies an AMBIGUOUS host shape
+ *          [www.]NAME.PUBSFX.APEX (NAME digit-free, PUBSFX a TLD or HSFX
+ *          interior label sitting exactly at index k-3). Both re-rooted
+ *          crawler spam (freebitco.in.vulnweb.com, bing.com.vulnweb.com)
+ *          and legit deep corporate subdomains (qeif.tv.example.com,
+ *          jxsti.info.example.com, awyxqc-*.tv.example.com) match the shape;
+ *          the registrable-apex wildcard property that actually
+ *          distinguishes them is not locally observable from the URL.
+ *          v13 dropped on host alone, destroying the auth endpoint.
+ *          Added is_shallow_path(path,prem): a request is shallow if
+ *          the path is empty, '/', or '/'+one root-admin/crawler file
+ *          (robots.txt, favicon.ico, sitemap.xml, humans.txt,
+ *          security.txt, ads.txt, crossdomain.xml,
+ *          clientaccesspolicy.xml, apple-touch-icon*.png, a passive
+ *          index.*), with no query and no fragment. Combined at the
+ *          call site: the gate now fires only when host_embeds_domain()
+ *          AND is_shallow_path(). The de-id audit confirms this
+ *          discriminator: the 5 wb.full hosts the gate touches
+ *          (linear-XX.tv, download-aoc.tv, depot.info) all have only
+ *          shallow paths in the input and are still dropped (zero real
+ *          surface lost); auth.tv (the destroyed real endpoint) has a
+ *          deep path and is now KEPT.
+ *      Residual: vulnweb's wildcard DNS apex produces 26 "mirror"
+ *      lines under alternate hostnames (bing.com.vulnweb.com/Flash/...,
+ *      hotelresidenceitalia.com.vulnweb.com/admin/...) carrying deep
+ *      mirror paths from the canonical testphp.vulnweb.com box. v14
+ *      keeps these as distinct signatures because they are deep, not
+ *      shallow. They are not destroyed surface (the canonical routes
+ *      remain) and they are not new endpoints (same target box via
+ *      wildcard); they are conservatively retained noise, the
+ *      unavoidable cost of removing the structural false-positive that
+ *      destroyed auth. Documented in AUDIT.md.
+ *      One added predicate, one combined call site - architecture
+ *      unchanged, still O(unique signatures) RAM, still single-pass.
+ *
+ * v13: Q1-grade re-benchmark (N=10, fixed-clock, canonicalization-invariant
+ *      quality metric) hand-audited every udud "loss" and exposed a FOURTH
+ *      genuine destruction bug, fixed at source, still strictly single-pass /
+ *      NO buffering:
+ *        - bad_bytes()'s BB_S[] (the both-path-AND-query Aho-Corasick set
+ *          that drops the WHOLE url) listed the LFI / traversal / file-
+ *          disclosure tokens etc/passwd, etc%2fpasswd, /etc/shadow,
+ *          boot.ini, win.ini, %2e%2e%2f, ..%2f, ..%5c. In a QUERY string
+ *          those tokens are not garbage - they mark a real ?file= /
+ *          ?include= / ?page= LFI parameter whose ENDPOINT + param-name +
+ *          dedup-signature must survive (clean_query() already blanks the
+ *          payload VALUE, never emitting it). The both-sides set fired on
+ *          the query and silently dropped the whole url, so the only LFI
+ *          line on vulnweb (http://testphp.vulnweb.com/?file=../../../../
+ *          etc/passwd) was destroyed 2->0. This directly contradicted the
+ *          file's own header design note and clean_query()'s contract.
+ *          Fix: those tokens moved OUT of BB_S (both-sides) and the file-
+ *          disclosure ones (etc/passwd, etc%2fpasswd, /etc/shadow,
+ *          boot.ini, win.ini) added to BP_S (PATH-only drop). A literal
+ *          /etc/passwd in the PATH is still dropped; traversal ../, %2e%2e,
+ *          %5c were already PATH-only in BP_S so path-side detection is
+ *          unchanged; a ?file=../../etc/passwd LFI endpoint is now KEPT
+ *          with its value blanked. Verified surgical: vulnweb 1382->1383
+ *          (+1 = exactly the recovered LFI), D_example_wb.full 781398-line
+ *          stream delta 0, deterministic, zero garbage leaked, zero loss.
+ *        - RAM claim corrected (honesty): older blocks below say "RSS
+ *          constant ~3.5 MB (~6.6 MB on the 634k stream)". That is WRONG.
+ *          udud keeps one templated signature per UNIQUE structural class,
+ *          so peak RSS is O(distinct signatures), not constant. Measured
+ *          on the frozen Q1 rig: 18.3 MB peak on the 781398-line
+ *          wayback corpus (124975 unique signatures). It is still by far
+ *          the lowest-RSS tool that is not a trivial passthrough, and
+ *          still single-pass with no per-line/cross-line buffering - that
+ *          (O(unique) not O(input)) is the win - but it is not "constant".
+ *
+ * v12: real per-line pentester audit on the gau + wayback corpora
  *      (44943 / 634k lines) exposed THREE genuine source defects - all
  *      destructive (real attack surface silently dropped), all fixed at
  *      source, still strictly single-pass / O(1)-extra-RAM, NO buffering:
@@ -10,36 +88,36 @@
  *          branch never matched -> EVERY .html terminal segment was
  *          flagged "mangled extension" and the whole URL DROPPED. udud
  *          had been silently destroying 100% of .html across vulnweb /
- *          testinvicti / apple gau / apple wayback through v7..v11. Fixed
+ *          testinvicti / gau / wayback through v7..v11. Fixed
  *          to `else if(M[m][1]=='h')` (only ".htm" has [1]=='h'; ".php"
  *          is already caught by the preceding [1]=='p'&&[2]=='h' test),
  *          so .html is preserved with zero regression to php/asp/jsp/pl/
  *          cgi. vulnweb +28 real .html restored (login.html, xss.html,
  *          path-disclosure-unix/win.html, Angular partials, RateProduct-
- *          1.bak.html); apple gau +427, apple wayback ~+1700.
+ *          1.bak.html); gau +427, wayback ~+1700.
  *        - bad_bytes(): a bare '=' in the PATH was treated as a glued
  *          query (/artists.php=1) and rejected - but that also destroyed
  *          the standard J2EE matrix param ;jsessionid= / ;sid= (a REAL
  *          authenticated endpoint, e.g. Authenticate.do;jsessionid=..).
  *          Now a ';' arms a `semi` flag and '=' is allowed only after it
  *          (RFC3986 matrix param); a bare '=' with no preceding ';' is
- *          still rejected. apple wayback keeps 28 ;jsessionid= endpoints
+ *          still rejected. wayback keeps 28 ;jsessionid= endpoints
  *          that uro and urless both destroy (0).
  *        - host_embeds_domain(): "any interior public-suffix label"
- *          false-positived legitimate deep corporate DNS - apple's
- *          www.uk.euro.apple.com (204 lines, the whole Apple.woa app),
- *          channel.uk.euro.apple.com, abs07.info.apple.com (116 lines,
+ *          false-positived legitimate deep corporate DNS - the corpus's
+ *          www.en.xect.example.com (204 lines, the whole the .woa app app),
+ *          zfqyyxa.en.xect.example.com, qko07.info.example.com (116 lines,
  *          8 store .woa) were DROPPED because uk/info are in the suffix
  *          set. Tightened to the exact re-rooted-SEO-spam shape only
  *          ([www.]NAME.PUBSFX.APEX with the suffix exactly at k-3 and a
  *          digit-free registrable NAME); every validated vulnweb spam
- *          host is still dropped, the apple surface is restored.
+ *          host is still dropped, the corporate surface is restored.
  *      These were destruction bugs (best != fewest lines): the earlier
  *      "non-destructive, verified line-by-line" claims for vulnweb v7..
- *      v11 and the apple gau v11 verdict were WRONG re .html and are
+ *      v11 and the gau v11 verdict were WRONG re .html and are
  *      corrected here. Architecture unchanged - 3 precise source fixes,
  *      not a rewrite; still single-pass, RSS still constant ~3.5 MB
- *      (~6.6 MB on the 634k-line apple wayback stream).
+ *      (~6.6 MB on the 634k-line wayback stream).
  *
  * v11: read uddup & urless source to learn WHY their testinvicti output
  *      is small, then match the good part WITHOUT their destruction.
@@ -351,8 +429,14 @@ static const char*BB_S[]={
  "confirm(","union select","union%20select","unionselect","order by",
  "order%20by","information_schema","xp_cmdshell","sleep(","benchmark(",
  "waitfor delay","pg_sleep","extractvalue(","updatexml(","concat(",
- "char(","0x3c","etc/passwd","etc%2fpasswd","/etc/shadow","boot.ini",
- "win.ini","%2e%2e%2f","..%2f","..%5c","%252e","&quot","&gt;","&lt;","&amp;",
+ "char(","0x3c","%252e","&quot","&gt;","&lt;","&amp;",
+ /* LFI / path-traversal / file-disclosure payloads (etc/passwd,
+  * boot.ini, ..%2f, %2e%2e%2f, ..) are NOT in this both-sides list:
+  * in a QUERY they are exactly the ?file= / ?include= LFI parameter a
+  * pentester must keep. clean_query()/val_is_payload() already blank
+  * the payload VALUE (-> ?file=) so the endpoint, the param name and
+  * the dedup identity all survive while the payload is never emitted.
+  * They stay garbage in the PATH only - see BP_S below. */
  " http/","%20http/","http/1.","user-agent:","host:","cookie:",
  "referer:","x-forwarded","accept-encoding","fuzz",
  /* Acunetix scanner probe markers (vulnweb is its own testbed) -
@@ -380,6 +464,12 @@ static const char*BB_S[]={
 static const char*BP_S[]={
  "http:","https:","://","..","%2e%2e","%20","%09","%00","%3f",
  "%5b","%5c","%5d","%5e","%60","%7b","%7c","%7d","%25",
+ /* file-disclosure target strings: still garbage when they appear in
+  * the PATH itself (/cgi-bin/....//etc/passwd is a scanner artefact,
+  * not an endpoint), but in a query value they mark a real LFI param
+  * to keep (handled by BB_S omission + clean_query value-blanking).
+  * Traversal (.. %2e%2e %5c) is already covered above. */
+ "etc/passwd","etc%2fpasswd","/etc/shadow","boot.ini","win.ini",
  /* a scheme with its '://' percent-decoded-then-stripped of the '%' :
   * https%3A%2F%2F -> https3a2f2f (embedded comment-spam URL mangled into
   * the path: /https3A2F2Fpines-lf.click/archives/145). The 6-byte
@@ -573,22 +663,22 @@ static int glued_tld(const char*s,size_t n){
  * unmistakable ONLY in the exact shape  [www. ...]  NAME . PUBSFX . APEX :
  *   - the public suffix sits EXACTLY at index k-3 (the single label right
  *     before the apex pair); a real corporate label that merely *contains*
- *     a ccTLD deeper in the tree (www.`uk`.euro.apple.com -> uk is at
+ *     a ccTLD deeper in the tree (www.`en`.xect.example.com -> en is at
  *     index 1, k-3=2, NOT a suffix at k-3) is therefore untouched;
  *   - NAME (index k-4) is a real registrable second-level name: letters/
  *     hyphen, NO digit. Auto-generated corporate host labels carry digits
- *     (apple's abs07.info.apple.com, a1837.phobos.apple.com,
- *     s06.itunes.apple.com) and are REAL distinct surface - kept;
+ *     (the corpus's qko07.info.example.com, q1837.sftkto.example.com,
+ *     o06.wieyxo.example.com) and are REAL distinct surface - kept;
  *   - every deeper prefix label is exactly "www" (re-rooted SEO-spam is
  *     www.<embedded-domain>.<apex>; a genuine multi-level subdomain such
- *     as channel.uk.euro.apple.com must never be dropped).
+ *     as zfqyyxa.en.xect.example.com must never be dropped).
  * Still drops every validated vulnweb host (bing/blogger/freebitco/
  * hotelresidenceitalia .*.vulnweb.com); their create.sql / htaccess.conf
  * / database_connect.php survive on the real testphp/testasp box
  * (wildcard => identical machine) so 0 vulnweb surface lost. v12: the old
  * "any interior pub-suffix label" rule destroyed legitimate deep
- * corporate DNS (www.uk.euro.apple.com = 204 lines/Apple.woa,
- * abs07.info.apple.com = 116 lines/8 store .woa) - a non-destructive
+ * corporate DNS (www.en.xect.example.com = 204 lines/the .woa app,
+ * qko07.info.example.com = 116 lines/8 store .woa) - a non-destructive
  * violation - now fixed precisely. testphp.vulnweb.com (k=3),
  * test.php.vulnweb.com / onair.testphp.vulnweb.com (no suffix at k-3),
  * www.acunetix.com (k=3) remain untouched. */
@@ -613,6 +703,44 @@ static int host_embeds_domain(const char*h,size_t n){
         if(!(ll[i]==3 && (h[ls[i]]|32)=='w' && (h[ls[i]+1]|32)=='w'
              && (h[ls[i]+2]|32)=='w')) return 0;
     return 1; }
+/* a "shallow" request: empty, '/', or '/'+one root-admin/crawler file
+ * (robots.txt, favicon.ico, sitemap.xml, humans.txt, security.txt,
+ * ads.txt, crossdomain.xml, clientaccesspolicy.xml, apple-touch-icon*,
+ * a passive index.*), no query, no fragment. Combined with
+ * host_embeds_domain() at the call site so the genuinely-ambiguous
+ * [www.]NAME.PUBSFX.APEX shape is dropped ONLY at a shallow root - the
+ * locally-observable signature of re-rooted crawler spam under a
+ * wildcard apex. A legit corporate subdomain (qeif.tv.example.com with
+ * /auth/v1/qr/validate) carries a deep application route and is kept.
+ * `p` is the suffix from end-of-host through fragment: it starts with
+ * '/' or '?' or '#' or is empty. */
+static int is_shallow_path(const char*p, size_t n){
+    if(!n) return 1;                                /* "" - bare host       */
+    const char*hash=memchr(p,'#',n);
+    size_t lim = hash ? (size_t)(hash-p) : n;
+    if(memchr(p,'?',lim)) return 0;                 /* a query => deep      */
+    if(hash) return 0;                              /* a # => treat as deep */
+    if(lim==1 && p[0]=='/') return 1;               /* "/"                  */
+    if(p[0]!='/') return 0;                         /* malformed; let pass  */
+    size_t e=lim; while(e>1 && p[e-1]=='/') e--;    /* one trailing slash   */
+    for(size_t i=1;i<e;i++) if(p[i]=='/') return 0; /* only ONE segment     */
+    size_t sl=e-1; const char*sg=p+1;
+    if(!sl) return 1;
+    static const char*R[]={
+        "robots.txt","favicon.ico","sitemap.xml","sitemap_index.xml",
+        "humans.txt","security.txt","ads.txt","crossdomain.xml",
+        "clientaccesspolicy.xml","apple-touch-icon.png",
+        "apple-touch-icon-precomposed.png",
+        "index.html","index.htm","index.php","index.asp","index.aspx",
+        "index.jsp","default.html","default.htm","default.asp",
+        "default.aspx",0};
+    for(int i=0;R[i];i++){
+        size_t rl=strlen(R[i]); if(rl!=sl) continue;
+        size_t k=0; for(;k<sl;k++)
+            if((char)tolower((unsigned char)sg[k])!=R[i][k]) break;
+        if(k==sl) return 1;
+    }
+    return 0; }
 /* a [HH:MM:SS] / [H:MM:SS] terminal-log / progress-bar clock glued to a
  * captured URL (search.php?test=query[14:13:39 , .../1[09:41:02]) - the
  * tool's stdout timestamp, never part of the real endpoint. Bracket +
@@ -1053,7 +1181,10 @@ int main(int argc,char**argv){
          * host (testasp.vulnweb.comtestasp.vulnweb.com) - never a real URL */
         if(!X&&port&&(portn==0||!all_digits(port,portn))) continue;
         if(!X&&glued_tld(host,hl)) continue;
-        if(!X&&host_embeds_domain(host,hostn)) continue;
+        /* v14: ambiguous [www.]NAME.PUBSFX.APEX shape (wildcard spam vs
+         * legit deep subdomain) - drop only at a shallow root. */
+        if(!X&&host_embeds_domain(host,hostn)
+             &&is_shallow_path(path,prem)) continue;
 
         /* path | query | fragment */
         const char*pp=path; size_t ppn=prem;

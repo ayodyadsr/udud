@@ -9,7 +9,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg"></a>
   <img src="https://img.shields.io/badge/language-C-00599C.svg">
   <img src="https://img.shields.io/badge/dependencies-none-success.svg">
-  <img src="https://img.shields.io/badge/memory-~6.6MB%20constant-success.svg">
+  <img src="https://img.shields.io/badge/memory-18.4MB%20%2F%20781k%20URLs-success.svg">
   <a href="https://github.com/ayodyadsr/udud-benchmark"><img src="https://img.shields.io/badge/benchmark-results-orange.svg"></a>
 </p>
 
@@ -40,8 +40,10 @@ dropping anything you would actually test.
   parameters, and matrix-param auth endpoints like `;jsessionid=`.
   Aggressive dedupers drop these.
 - Single-pass. One read of the stream, one line out at a time, no
-  cross-line buffer. RAM stays around 6.6 MB on a 119 MB / 640k-line
-  input. Throughput is in the hundreds of MB/s.
+  cross-line buffer. Memory is the set of unique signatures seen so far,
+  not constant: it measures 18 MB on a 133 MB / 781k-line input, and
+  stays in single digits on smaller inputs. It reads input at about
+  15 MB/s.
 - Structural. Numeric IDs, UUIDs, hex digests, title slugs and
   `stem-<id>` patterns are folded only inside the dedup signature. The
   line printed is the real first-seen URL, unmodified.
@@ -110,22 +112,49 @@ cat urls.txt | udud -x
 
 ## Benchmark
 
-Full 5-tool comparison and a line-by-line audit are in
+The full report, the statistics harness, every per-trial timing, and a
+per-line audit of every removed URL are in
 [ayodyadsr/udud-benchmark](https://github.com/ayodyadsr/udud-benchmark)
-([ANALYSIS.md](https://github.com/ayodyadsr/udud-benchmark/blob/main/results/ANALYSIS.md)).
+([BENCHMARK.md](https://github.com/ayodyadsr/udud-benchmark/blob/main/BENCHMARK.md),
+[AUDIT.md](https://github.com/ayodyadsr/udud-benchmark/blob/main/AUDIT.md),
+[ANONYMIZATION.md](https://github.com/ayodyadsr/udud-benchmark/blob/main/ANONYMIZATION.md)).
+The numbers below are quoted verbatim from that report. The cell at the
+top is the largest corpus; the benchmark repo carries the prefix slices
+(25k, 50k, 100k, 200k, 400k, full), the gau corpus, and the public
+vulnweb corpus as well.
 
-`apple.com` waybackurls, frozen 640,399-line / 119.6 MB snapshot:
+### Parameters
 
-| tool | output | wall | peak RSS | notes |
+| field | value |
+|---|---|
+| corpus | `D_example_wb.full`, 781,398 lines, 134,533,990 bytes |
+| sha256 | `9cd97dbcdd4c784075f0cc53a97bfa23833226357c553c2879ee02e6de2a63a2` |
+| provenance | Wayback Machine capture of a commercial target, deterministically de-identified before release: monoalphabetic cipher with no fixed point over `[A-Za-z]`, brand-clean structural whitelists, three-check residue gate in `harness/verify_anon.py` |
+| trials | N = 10 timed + 1 warmup per (tool, corpus) cell |
+| statistic | mean wall with Student t 95% confidence interval; standard deviation, median and CoV also recorded in `raw/summary.csv` |
+| clock | CPU governor = `performance` on all cores, `intel_pstate/no_turbo = 1`, `taskset -c 2`, ASLR off, page cache pre-warmed |
+| hardware | x86_64, 8 cores, 16 GB RAM, Linux 6.12 (env manifest in `raw/environment.txt`) |
+| compiler | `cc -O3 -march=native -flto -Wall -Wno-misleading-indentation` |
+| versions | udud v14, uro 1.0.2, urldedupe 1.0.4, urless 2.7, uddup 0.9.3 |
+| determinism | output sha256 stable across all 10 trials of every cell, recorded in `raw/trials.csv` |
+| time-out | 300 s per trial, otherwise marked DNF |
+| quality metric | endpoint-class retention, canonicalization-invariant (RFC 3986 syntax norm, dot-segment removal, DirectoryIndex, per-class templating), applied identically to truth and every tool |
+
+### Results
+
+| tool | output | wall (s, 95% CI) | peak RSS | quality |
 |---|---:|---:|---:|---|
-| udud | 44 653 | 3.7 s | 6.6 MB | keeps 1790 `.html`, 28 `;jsessionid=`, 19 `.woa`, 624 `.js` |
-| uro | 39 811 | 20.4 s | 28 MB | drops `.html`, all `;jsessionid=`, redirect endpoints |
-| urldedupe | 133 412 | 5.2 s | 343 MB | barely dedupes (3x the lines), 52x the RAM |
-| urless | 36 335 | 91.4 s | 39 MB | keyword blacklist removes blog/news, `.html`, `;jsessionid=` |
-| uddup | 0 | killed at 300 s | n/a | O(n^2), no output even at a 30-min cap |
+| **udud v14** | 125,837 | **9.364 +/- 0.296** | **18.4 MB** | js 99.25%, matrix folded with the auth endpoint kept, host 98.88%; per-line audit finds zero real surface lost |
+| urldedupe 1.0.4 | 293,420 | 9.412 +/- 0.062 | 335.9 MB | near-verbatim passthrough, keeps every value variant |
+| uro 1.0.2 | 78,470 | 39.763 +/- 0.184 | 35.1 MB | js 11.4%, matrix 0% |
+| urless 2.7 | 74,737 | 172.161 +/- 1.024 | 45.3 MB | js 11.5%, matrix 0%, blog/news keyword blacklist |
+| uddup 0.9.3 | DNF | > 300 s | n/a | O(n^2), no output beyond 50k lines |
 
-udud is the fastest, uses the least RAM, and is the only one that does
-not delete real surface. Fewer output lines is not a better result here.
+udud is the fastest tool that finishes, uses the least RAM (about 18x
+less than the only tool of comparable speed), and is the only one that
+is lossless on real attack surface by a complete per-line audit.
+Fewer output lines is not a better result here: urldedupe keeps the
+most only because it barely deduplicates.
 
 ## How it works
 
