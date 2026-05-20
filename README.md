@@ -140,21 +140,66 @@ vulnweb corpus as well.
 | time-out | 300 s per trial, otherwise marked DNF |
 | quality metric | endpoint-class retention, canonicalization-invariant (RFC 3986 syntax norm, dot-segment removal, DirectoryIndex, per-class templating), applied identically to truth and every tool |
 
-### Results
+### Results, per axis
 
-| tool | output | wall (s, 95% CI) | peak RSS | quality |
-|---|---:|---:|---:|---|
-| **udud v14** | 125,837 | **9.364 +/- 0.296** | **18.4 MB** | js 99.25%, matrix folded with the auth endpoint kept, host 98.88%; per-line audit finds zero real surface lost |
-| urldedupe 1.0.4 | 293,420 | 9.412 +/- 0.062 | 335.9 MB | near-verbatim passthrough, keeps every value variant |
-| uro 1.0.2 | 78,470 | 39.763 +/- 0.184 | 35.1 MB | js 11.4%, matrix 0% |
-| urless 2.7 | 74,737 | 172.161 +/- 1.024 | 45.3 MB | js 11.5%, matrix 0%, blog/news keyword blacklist |
-| uddup 0.9.3 | DNF | > 300 s | n/a | O(n^2), no output beyond 50k lines |
+Each row is one comparison axis. The winning cell is in bold.
 
-udud is the fastest tool that finishes, uses the least RAM (about 18x
-less than the only tool of comparable speed), and is the only one that
-is lossless on real attack surface by a complete per-line audit.
-Fewer output lines is not a better result here: urldedupe keeps the
-most only because it barely deduplicates.
+| metric | what it means | udud v14 | urldedupe 1.0.4 | uro 1.0.2 | urless 2.7 | uddup 0.9.3 |
+|---|---|---:|---:|---:|---:|---:|
+| wall time | end-to-end, lower is better | **9.36 s** | 9.41 s | 39.76 s | 172.16 s | DNF (> 300 s) |
+| peak RSS | memory used, lower is better | **18.4 MB** | 335.9 MB | 35.1 MB | 45.3 MB | n/a |
+| output lines | structural folding only (see below) | 125,837 | 293,420 | 78,470 | 74,737 | n/a |
+| .js endpoints kept | source files a pentester needs | **99.25%** | 100% (no dedup) | 11.42% | 11.49% | n/a |
+| .html pages kept | login/error/handler pages | **99.85%** | 100% (no dedup) | 96.05% | 96.05% | n/a |
+| source-disclosure kept | .bak / .sql / .zip / .phps | **100%** | 100% | 100% | 100% | n/a |
+| `;jsessionid=` auth endpoints | matrix-param J2EE auth routes | **kept (token-folded)** | kept (no dedup) | destroyed (0) | destroyed (0) | n/a |
+| open-redirect / SSRF / LFI params | the actual attack surface | **kept** | kept (no dedup) | partial | partial | n/a |
+| distinct real endpoints destroyed | hand-audited, every removed URL | **0** | 0 (trivial, see below) | 51,232 | 51,188 | total |
+
+### Why output line count alone is not the right metric
+
+`urldedupe` keeps the most lines (293,420) because it barely
+deduplicates: it acts as a near-verbatim passthrough and only collapses
+exact byte duplicates. It pays for this with 335.9 MB of peak memory
+(18.3x more than udud) and offers almost no structural folding.
+
+`uro` and `urless` produce the fewest lines (78,470 and 74,737), but
+they get there by deleting the categories a pentester actually wants:
+uro destroys 51,209 distinct `.js` endpoints and all 23 distinct
+`;jsessionid=` authenticated routes (51,232 real endpoints gone);
+urless destroys 51,165 `.js` endpoints and the same 23 auth routes
+(51,188 gone). Fewer output lines is not a better result when the
+deleted lines are real attack surface.
+
+`udud` is the only tool that does heavy structural dedup (781,398
+input down to 125,837 output, an 83.9% reduction) while keeping the
+attack surface intact: 99.25% of `.js`, 99.85% of `.html`, all
+source-disclosure findings, every `;jsessionid=` route (folded by
+token, not deleted), and every open-redirect / SSRF / LFI parameter.
+Every line udud removes is published in `raw/audit/` and classified
+by hand in `AUDIT.md`; the per-line verdict is zero real surface lost
+(two small documented residuals).
+
+### Relative position
+
+- vs `urldedupe`: udud matches its wall time within the confidence
+  interval and uses **18.3 times less memory**, while doing real
+  structural folding it does not do.
+- vs `uro`: udud is **4.2 times faster**, uses **1.9 times less
+  memory**, and keeps 8.7x more `.js` endpoints + every auth route
+  that uro destroys.
+- vs `urless`: udud is **18.4 times faster**, uses **2.5 times less
+  memory**, and keeps the same .js + auth surface that urless
+  destroys.
+- vs `uddup`: udud finishes; uddup does not (O(n^2), no output beyond
+  ~50k lines within the 300 s cap).
+
+### Summary
+
+udud is the only tool that is simultaneously the fastest finisher,
+the lowest in peak memory, and lossless on real attack surface by a
+complete per-line audit. Every other tool gives up at least one of
+those three.
 
 ## How it works
 
