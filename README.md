@@ -39,23 +39,32 @@ dropping anything you would actually test.
   files (`.bak`, `.sql`, `.zip`, `.phps`), open-redirect / SSRF / LFI
   parameters, and matrix-param auth endpoints like `;jsessionid=`.
   Aggressive dedupers drop these.
-- Single-pass. One read of the stream, one line out at a time, no
-  cross-line buffer. Memory is the set of unique signatures seen so far,
-  not constant: it measures 18.6 MB on a 133 MB / 781k-line input, and
-  stays in single digits on smaller inputs. It reads input at about
-  17 MB/s.
+- Single-pass. One read of the stream, no cross-line rescans. The default
+  mode holds the kept lines until end of input so each path's query URLs
+  can collapse to their richest witness (see below), so memory is the
+  unique signatures plus the kept output: about 30 MB on a 133 MB /
+  781k-line input, single digits on smaller inputs, reading at about
+  17 MB/s. The `-k` and `-x` modes stream one line out at a time at
+  roughly half that memory. Either way it stays far below urldedupe and
+  uro on the same input.
 - Object-ids preserved by default. UUIDs, hex digests, `stem-<id>` and
   numeric object-ids are kept distinct, so every per-object reference
   (each IDOR / broken-access target like `/api/users/123`) survives as
   its own line. The one numeric exception: a number sitting under a
   content/listing word (`/cat/9/details`, `/blog/124`, `/product/7`) is a
   content-item index, not an access-control object, so it still folds.
-  Title slugs and query key-sets fold too. The result is exact dedup that
-  stays structurally smart, not `sort -u`. Pass `-F` to fold every id
+  Title slugs fold too. Query URLs of one path go further: instead of one
+  line per distinct key-set, they collapse to a single witness, the real
+  URL carrying the most distinct query keys (`/home?qs=asd&secondQs=das`
+  and `/home?qs=value` become just the two-key one). A no-query URL of the
+  same path is kept as its own separate line. The result is exact dedup
+  that stays structurally smart, not `sort -u`. Pass `-F` to fold every id
   (the aggressive endpoint-discovery mode: `/api/users/123` and `/222`
-  collapse to one witness).
+  collapse to one witness); pass `-k` to keep every distinct query key-set
+  as its own line instead of merging.
 - Structural folding happens only inside the dedup signature. The line
-  printed is always the real first-seen URL, unmodified.
+  printed is always a real URL, unmodified: the first-seen one for a
+  group, or the richest real query URL when query variants are merged.
 - Clean by default. No flags needed. Scanner junk, payload cache values,
   mangled hosts and crawler spam are dropped without asking. Pass `-x`
   if you want the raw stream with no cleaning.
@@ -96,7 +105,9 @@ usage: udud [-F] [-x] [-a] [-s] [-k] [-p] [-W] [-r] [-V]
   -x   keep invalid URLs, fully raw, no cleaning
   -a   keep all assets (do not filter .css/.png/.woff/...)
   -s   case-sensitive path matching
-  -k   keep param values (dedup on the full query, not just keys)
+  -k   keep param values and every distinct query key-set as its own line
+       (dedup on the full query; disables the default query-witness merge
+       and restores streaming output)
   -p   no path templating at all (also drops the title-slug fold)
   -W   opt out of wayback-noise handling
   -r   opt out of URL canonicalization
@@ -290,19 +301,28 @@ surface lost with two small documented design-boundary residuals
 Each line goes through one pass: repair the scheme, normalize host and
 port, run host sanity gates, split path / query / fragment, drop
 garbage, then build a dedup signature. In the signature, a title slug
-becomes `S` and the query is reduced to its sorted key set. A numeric
-segment becomes `N` only when its parent is a content/listing word
-(`/cat/9` to `/cat/N`); a numeric anywhere else stays verbatim so distinct
-object-ids stay distinct. UUID, hex of length 12 or more, and `stem-<id>`
-are also kept verbatim by default. Under `-F` every id is templated
-(digits to `N`, UUID to `U`, long hex to `H`, `stem-<id>` to `stem-#`)
-regardless of context. The signature is looked up in a hash set. If it is
-new, the original URL bytes are printed unchanged.
+becomes `S`. A numeric segment becomes `N` only when its parent is a
+content/listing word (`/cat/9` to `/cat/N`); a numeric anywhere else
+stays verbatim so distinct object-ids stay distinct. UUID, hex of length
+12 or more, and `stem-<id>` are also kept verbatim by default. Under `-F`
+every id is templated (digits to `N`, UUID to `U`, long hex to `H`,
+`stem-<id>` to `stem-#`) regardless of context.
 
-Only the signature is compared. The URL that gets printed is never
-rewritten. There is no survivor buffer, so memory scales with the
-number of unique signatures, not with the size of the input. That is
-the point of the single-pass design.
+The query decides the grouping. A URL with no query gets its own
+signature. A URL with a query is grouped by path alone (the key-set is
+not part of the signature in the default mode), so every query variant of
+one path shares a group and only the witness with the most distinct keys
+is kept; the no-query URL stays a separate group. Because that richest
+witness can arrive after a poorer one, the default output is buffered and
+written at end of input, one real URL per group in first-seen order. Pass
+`-k` to put the full query in the signature instead, which keeps every
+distinct key-set on its own line and restores streaming output.
+
+Only the signature is compared and the URL that gets printed is never
+rewritten, just selected. Memory scales with the number of unique
+signatures plus, in the default mode, the kept output lines held until
+end of input; under `-k` / `-x` there is no survivor buffer and output
+streams one line at a time.
 
 ## License
 

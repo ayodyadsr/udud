@@ -1,5 +1,25 @@
 /* udud v18 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
  *
+ * v18.3: query-keyset MERGE in the default mode. Before, two query URLs of one
+ *      templated path with different key SETS stayed separate lines, so
+ *      /home?qs=asd&secondQs=das and /home?qs=secondValue were two outputs.
+ *      They now collapse to ONE representative: the real URL carrying the MOST
+ *      distinct query keys (tie keeps first-seen). A no-query URL of the same
+ *      path is its OWN group and is never absorbed (e.g. /home and /home?x
+ *      stay two lines). Rule, per request: aggressive one-per-path collapse
+ *      among query URLs, knowingly dropping a disjoint-keyset variant in
+ *      favour of the richest; the common nested case (?a vs ?a&b) loses
+ *      nothing since the richer is a superset. The richest can appear AFTER a
+ *      poorer one, which streaming cannot un-emit, so default output is now
+ *      DEFERRED to EOF: one record per group in first-seen order, replaced in
+ *      place when a richer query URL arrives. Cost is holding the kept output
+ *      lines in the arena until EOF (RAM ~2x the dedup-key arena; still far
+ *      below urldedupe/uro, speed within noise). ONLY the default keyset mode
+ *      merges; -k (full query) and -x (raw) keep the old per-distinct
+ *      STREAMING behaviour, verified byte-identical to v18.2 on
+ *      gau/vulnweb/wb-full. Emitted lines are always real first-seen/richest
+ *      URLs (merge output is a strict subset of v18.2 default output).
+ *
  * v18.2: perf only, output BYTE-IDENTICAL to v18 on every flag and corpus
  *      (verified on gau/vulnweb/wb-full + synthetic repeat-artefact cases).
  *      Now FASTER than urldedupe on every corpus while still doing real dedup
@@ -417,7 +437,7 @@ static size_t arena_put(const char *s, size_t n) {
 }
 
 /* ---------- exact-keyed open-addressing set ---------- */
-typedef struct { unsigned long long h; size_t off; unsigned len; } Slot;
+typedef struct { unsigned long long h; size_t off; unsigned len; unsigned rec; } Slot;
 static Slot  *tab = NULL;
 static size_t tab_cap = 0, tab_cnt = 0;
 static unsigned long long fnv1a(const char *p, size_t n) {
@@ -437,6 +457,33 @@ static int tab_add(const char *s, size_t n){
     while(tab[j].len){ if(tab[j].h==h&&tab[j].len==n&&!memcmp(arena+tab[j].off,s,n)) return 0;
         j=(j+1)&(tab_cap-1); }
     tab[j].h=h; tab[j].off=arena_put(s,n); tab[j].len=(unsigned)n; tab_cnt++; return 1;
+}
+
+/* ---------- deferred-emit records (query-keyset merge) ----------
+ * Default keyset mode collapses every query-bearing URL of one templated
+ * path into the single richest representative (most distinct params; tie
+ * keeps first-seen). The richest can appear AFTER a poorer one in the
+ * stream, so output is held until EOF: one Rec per group, in first-seen
+ * order. No-query URLs form their own group (sig has no '?') and are kept
+ * first-seen, never absorbed by / absorbing a query group. */
+typedef struct { size_t off; unsigned len; unsigned pcount; } Rec;
+static Rec   *recs = NULL;
+static size_t rec_cap = 0, rec_cnt = 0;
+static void rec_push(size_t off, unsigned len, unsigned pc){
+    if(rec_cnt>=rec_cap){ rec_cap=rec_cap?rec_cap*2:4096;
+        if(!(recs=realloc(recs,rec_cap*sizeof(Rec)))){perror("realloc");exit(1);} }
+    recs[rec_cnt].off=off; recs[rec_cnt].len=len; recs[rec_cnt].pcount=pc; rec_cnt++;
+}
+/* find sig; on miss insert it bound to the next record index. *is_new tells
+ * the caller whether to push a fresh Rec (1) or update recs[return] (0). */
+static unsigned tab_group(const char *s, size_t n, int *is_new){
+    if(tab_cnt*4>=tab_cap*3) tab_grow();
+    unsigned long long h=fnv1a(s,n); size_t j=h&(tab_cap-1);
+    while(tab[j].len){ if(tab[j].h==h&&tab[j].len==n&&!memcmp(arena+tab[j].off,s,n)){
+            *is_new=0; return tab[j].rec; }
+        j=(j+1)&(tab_cap-1); }
+    tab[j].h=h; tab[j].off=arena_put(s,n); tab[j].len=(unsigned)n;
+    tab[j].rec=(unsigned)rec_cnt; tab_cnt++; *is_new=1; return (unsigned)rec_cnt;
 }
 
 /* ---------- predicates ---------- */
@@ -1396,6 +1443,10 @@ int main(int argc,char**argv){
     size_t r_off=0, r_end=0;
     int in_eof=0;
     unsigned long long kept=0,total=0;
+    /* MERGE = default keyset mode: collapse a path's query URLs into the
+     * richest one (deferred emit). -k (full query) and -x (raw) keep the
+     * per-distinct streaming behaviour untouched. */
+    int MERGE=(!K&&!X);
     char sig[8192];
     /* v15: fast 3-byte "://" locator. memmem(...,"://",3) uses Two-Way
      * matching with setup cost amortised over longer needles; on a 3-byte
@@ -1570,15 +1621,52 @@ int main(int argc,char**argv){
                 if(segc<256){ seg_s[segc]=s; seg_l[segc]=sl; segc++; }
             }
         }
+        /* is_qgroup: this URL carries a meaningful query keyset, so in MERGE
+         * mode its group sig ends with a bare '?' (no keys) and pcount = the
+         * number of distinct query keys decides who represents the group. */
+        int is_qgroup=0; unsigned pcount=0;
         if(qok&&query&&queryn){
             if(K){ PUTC('?'); PUT(query,queryn); }
             else { char qk[4096]; size_t qn=query_keys(query,queryn,qk,sizeof qk);
-                   if(qn){ PUTC('?'); PUT(qk,qn); } } }
+                   if(qn){ PUTC('?');
+                       if(MERGE){ is_qgroup=1; pcount=1;
+                           for(size_t z=0;z<qn;z++) if(qk[z]=='&') pcount++; }
+                       else PUT(qk,qn); } } }
+
+        if(MERGE){
+            int is_new=0; unsigned ri=tab_group(sig,o,&is_new);
+            /* keep existing representative unless this is a strictly richer
+             * query URL for the same group */
+            if(!is_new && !(is_qgroup && pcount>recs[ri].pcount)) continue;
+            /* materialise the representative output line into the arena */
+            size_t off=arena_len;
+            if(!C){ arena_put(line,L); arena_put("\n",1); }
+            else {
+                char out[8192]; size_t r=0;
+                #define O(S,N) do{size_t _n=(N); if(r+_n<sizeof out){memcpy(out+r,(S),_n);r+=_n;}}while(0)
+                #define OC(X)  do{ if(r+1<sizeof out) out[r++]=(X);}while(0)
+                O(schb,schbn); O("://",3); O(H,HN);
+                if(port&&!defp){ OC(':'); O(port,portn); }
+                OC('/');
+                for(int k=0;k<segc;k++){ if(k) OC('/'); O(pp+seg_s[k], seg_l[k]); }
+                if(qok&&query&&queryn){ char cq[8192];
+                    size_t cn=clean_query(query,queryn,cq,sizeof cq);
+                    if(cn){ OC('?'); O(cq,cn); } }
+                if(r<sizeof out) out[r++]='\n';
+                arena_put(out,r);
+                #undef O
+                #undef OC
+            }
+            size_t olen=arena_len-off;
+            if(is_new){ rec_push(off,(unsigned)olen,pcount); kept++; }
+            else { recs[ri].off=off; recs[ri].len=(unsigned)olen; recs[ri].pcount=pcount; }
+            continue;
+        }
 
         if(!tab_add(sig,o)) continue;
         kept++;
 
-        /* ---- emit ---- */
+        /* ---- emit (streaming: -k / -x) ---- */
         if(!C){
             char nl[1]; nl[0]='\n';
             fwrite(line,1,L,stdout); fwrite(nl,1,1,stdout);
@@ -1600,9 +1688,13 @@ int main(int argc,char**argv){
             /* v15: '\n' goes INTO the buffer; single fwrite per line. */
             if(r<sizeof out) out[r++]='\n';
             fwrite(out,1,r,stdout);
+            #undef O
+            #undef OC
         }
     }
     done:
+    if(MERGE) for(size_t i=0;i<rec_cnt;i++)
+        fwrite(arena+recs[i].off,1,recs[i].len,stdout);
     if(V){ struct rusage ru; getrusage(RUSAGE_SELF,&ru);
         fprintf(stderr,"udud: %llu -> %llu  (peak RSS %ld KB)\n",total,kept,ru.ru_maxrss); }
     return 0;
