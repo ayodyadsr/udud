@@ -1,4 +1,108 @@
-/* udud v14 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
+/* udud v18 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
+ *
+ * v18: object-id PRESERVE is now the DEFAULT, with a content-section
+ *      exception. The id-class folds (all-digit 'N', uuid 'U', long-hex 'H',
+ *      "<stem>-<digits>" id_stem and the v17 mixed_id_stem "<stem>-<alnum>")
+ *      collapse distinct per-object references into one signature. For IDOR /
+ *      broken-access / object-enumeration recon every distinct id is a
+ *      distinct test target, so folding them away destroys real surface. v18
+ *      turns the uuid/hex/id_stem/mixed folds OFF by default and gates them
+ *      behind a new -F flag (Fold ids, the old aggressive endpoint-discovery
+ *      behaviour). Numeric 'N' is the one with a nuance: a numeric segment
+ *      whose PARENT is a content/listing word (cat, blog, article, product,
+ *      forum, ... see is_content_section) is a content-item index, not an
+ *      access-control object, so it STILL folds by default (/cat/9/details
+ *      and /cat/11/details -> one); a numeric anywhere else (/api/users/123,
+ *      /account/9/billing) is PRESERVED unless -F is given. What else stays
+ *      ON by default: query KEY-SET dedup (?a=1 == ?a=2), title-slug fold
+ *      (v15 is_slug + v16 content-section), exact-line dedup, the noise-asset
+ *      filter (-a recovers) and the sanity gate. So default udud is "exact
+ *      dedup that is still structurally smart", not sort -u; `udud -F`
+ *      reproduces the v17 fold-everything behaviour. Single-pass,
+ *      O(distinct sigs) RAM and O(seg)/line are unchanged - -F just lifts the
+ *      content-section gate and re-enables the uuid/hex/stem cold branches.
+ *      NOTE: this inverts the v17 default; any published benchmark that was
+ *      measured on folded output must be re-run with -F to stay comparable.
+ *
+ * v17: mixed alphanumeric id fold. udud already templated all-digit ('N'),
+ *      uuid ('U'), long-hex ('H') and "<stem>-<digits>" (id_stem) segments,
+ *      but NOT a per-object reference that mixes letters and a digit run -
+ *      e.g. /blah/U-61723A/settings vs /blah/U-63352B/settings stayed two
+ *      distinct lines. urless folds these only with a HAND-SUPPLIED regex
+ *      (-rcid 'U-[0-9]{5}[A-Z]'); uro/urldedupe/uddup do not fold them at
+ *      all. New mixed_id_stem() auto-detects the shape "<alpha-stem><sep>
+ *      <alnum token with a >=5 digit run and >=1 letter>" and folds it to
+ *      stem+"-#" in the dedup signature only (emitted line stays the real
+ *      first-seen URL). Gating on a 5+ digit run is the safety line - it
+ *      never matches versions/words (v2, oauth2, mp3, utf8, sha256, a year),
+ *      and preserving the stem keeps admin- vs user- ids distinct, so no
+ *      route is destroyed. Output is BYTE-IDENTICAL to v14/v15/v16 on all
+ *      four published corpora (synth/wb/gau/vulnweb - they hold no non-uuid
+ *      mixed-id of this shape; uuids are still caught earlier by 'U'), so the
+ *      published quality numbers and the line-by-line audit carry over
+ *      unchanged. The new fold only manifests on corpora that DO contain the
+ *      shape (e.g. /blah/U-61723A/...); any re-benchmark on such a corpus
+ *      must re-validate quality. Still single-pass / O(distinct sigs) RAM /
+ *      O(seg)/line - mixed_id_stem is a cold branch after id_stem fails.
+ *
+ * v16: content-section title-slug fold. v15 (and earlier) only folded a leaf
+ *      slug when it ended in a numeric id (is_slug: a-brief-history-12 -> S).
+ *      Digit-less human titles (/blog/why-people-suck-a-study,
+ *      /news/how-to-lick-your-own-toes) were kept distinct, so a route that
+ *      renders one handler over N articles emitted N near-identical lines.
+ *      Fix: a digit-less multi-word lowercase leaf now folds to one 'S'
+ *      witness IFF its PARENT segment is a known content section (blog(s),
+ *      post(s), article(s), news, story/stories, tag(s), category/-ies,
+ *      product(s)) - is_content_section() gate + is_text_slug() shape test.
+ *      Gating on the parent is deliberate: /api/get-user-profile and
+ *      /api/get-user-settings stay distinct (parent 'api' is not a content
+ *      section), so no route is destroyed - one representative per content
+ *      route is KEPT, never deleted. This CHANGES output vs v14/v15 on
+ *      corpora containing digit-less content slugs, so the v15
+ *      "byte-identical to v14" claim no longer covers v16: quality numbers
+ *      and the line-by-line audit must be re-validated before re-publishing.
+ *      Still strictly single-pass / O(distinct signatures) RAM / no survivor
+ *      buffering; the gate is O(1) over a fixed word list on leaf segments.
+ *
+ * v15: speed overhaul to hold the Pareto frontier on wall time too. The Q1
+ *      synthetic-corpus measurement (D_synth.full, 45410 lines, frozen rig)
+ *      had urldedupe at 0.164s and udud at 0.214s - urldedupe winning the
+ *      Execution Time column by 50 ms. Hand-instrumented the udud hot path:
+ *      the per-byte locale-aware tolower(3) on the path lowering loop
+ *      dominated (~80 calls/line * ~25 ns each), then the second full
+ *      scan of the path in the canonical-output rebuilder, then 4x memmem
+ *      on a 3-byte needle, then fwrite()+putchar() as two stdio operations.
+ *      Targeted, no architecture change, still strictly single-pass /
+ *      O(distinct signatures) RAM / NO survivor buffering / NO regression
+ *      to attack-surface fidelity (byte-identical output to v14):
+ *        - LO[256] ASCII lowercase LUT initialised once at main entry;
+ *          replaces every tolower((unsigned char)c) in the per-line hot
+ *          loop (host lowering, path-segment lowering, scheme lowering,
+ *          Aho-Corasick haystack folding). LUT lookup is a single load+
+ *          mask, no locale dispatch.
+ *        - scheme lowered ONCE into a stack buffer schb[], then memcpy'd
+ *          to both the dedup signature and the canonical-output buffer
+ *          (v14 lowered it twice, ~5 tolower calls duplicated per line).
+ *        - dedup-signature path loop now records the kept segment offsets
+ *          (seg_s[]/seg_l[]) so the canonical-output rebuilder no longer
+ *          re-walks the path string. The slash-collapse + dir-index-drop
+ *          decisions are taken ONCE; pass-2 is a tight loop of memcpys
+ *          over the recorded offsets.
+ *        - memmem(p,rem,"://",3) (4 call sites in scheme detection /
+ *          double-scheme repair) replaced with memchr(':') + bounded
+ *          memcmp("//",2). glibc memmem uses Two-Way matching which is
+ *          slower than a direct scan on a 3-byte needle.
+ *        - canonical output finalises with the '\n' written INTO the out
+ *          buffer, then a single fwrite() per emitted line (v14 used a
+ *          separate putchar('\n') = two stdio calls per line).
+ *        - setvbuf(stdin/stdout, 1 MB) so getline()/fwrite() amortise
+ *          syscall overhead over million-byte blocks instead of the
+ *          default 4 KB.
+ *      Output is byte-identical to v14 across all 4 corpora (synth +
+ *      D_example_wb + D_example_gau + D_vulnweb) - the audit verdict
+ *      (zero real attack surface lost) stands unchanged. See README.md
+ *      and udud-benchmark/BENCHMARK.md for the published wall/RSS
+ *      numbers.
  *
  * v14: published de-identified Q1 re-benchmark (D_example_*) hand-audited
  *      udud's per-cell lost lines line by line. The de-identified gau
@@ -261,8 +365,21 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 #include <unistd.h>
 #include <sys/resource.h>
+
+/* ---------- ASCII lowercase LUT (v15: tolower hot-path replacement) ---------- *
+ * tolower(3) is locale-aware (TLS lookup + per-call dispatch on glibc). On the
+ * synthetic corpus the per-line path-lowering loop was the single largest hot
+ * spot. URLs are ASCII by RFC; a 256-byte branch-free LUT folds A-Z to a-z and
+ * passes everything else through, which is what udud's path/host/scheme
+ * lowering already wanted (the surrounding code never touched non-ASCII bytes
+ * in those positions because bad_bytes() drops them upstream). */
+static unsigned char LO[256];
+static void lo_init(void){
+    for(int i=0;i<256;i++) LO[i]=(unsigned char)((i>='A'&&i<='Z')?(i|0x20):i);
+}
 
 /* ---------- arena ---------- */
 static char  *arena = NULL;
@@ -362,6 +479,39 @@ static size_t id_stem(const char*s,size_t n){
         if((c>='A'&&c<='Z')||(c>='a'&&c<='z'))alpha=1; }
     return alpha?st:0; }
 
+/* path segment "<alpha-stem><sep><opaque-id>" where <opaque-id> is a MIXED
+ * alphanumeric token (no '.') that carries a run of >=5 consecutive digits
+ * AND at least one letter - e.g. U-61723A, ref_4F00219X, order-2024Q7. This
+ * is the alphanumeric sibling of id_stem(): the trailing token is a per-
+ * object reference (user id, order id, asset code) exactly like a numeric
+ * ?id=, so it folds in the dedup SIGNATURE only (stem + "-#"). Same-stem
+ * refs collapse to ONE real first-seen representative while a DIFFERENT stem
+ * (admin- vs user-) stays a distinct signature, so no route is destroyed.
+ * Pure-digit trailing ids stay with id_stem(); requiring >=1 letter here
+ * keeps the two disjoint. The >=5 digit-run guard is the safety line: it
+ * never fires on versions/words/codes (v2, oauth2, mp3, utf8, sha256, h264,
+ * win32, a 4-digit year) - those have no 5+ digit run - so only genuine
+ * high-entropy identifiers fold. O(seg)/line, no state. Returns stem len. */
+static size_t mixed_id_stem(const char*s,size_t n){
+    if(n<7)return 0;
+    size_t st=n;                                 /* find LAST '-' or '_'     */
+    while(st&&s[st-1]!='-'&&s[st-1]!='_'){
+        if(s[st-1]=='.')return 0;                /* dotted id-token -> never */
+        st--; }
+    if(st==0||st==n)return 0;                    /* no sep, or sep at end    */
+    size_t run=0,best=0; int letter=0;           /* id-token = s[st .. n)    */
+    for(size_t i=st;i<n;i++){ char c=s[i];
+        if(c>='0'&&c<='9'){ if(++run>best)best=run; }
+        else if((c>='A'&&c<='Z')||(c>='a'&&c<='z')){ run=0; letter=1; }
+        else return 0;                           /* non-alnum -> not an id   */
+    }
+    if(!letter||best<5)return 0;
+    size_t stem=st-1; int alpha=0;               /* stem = s[0 .. st-1)      */
+    for(size_t i=0;i<stem;i++){ char c=s[i];
+        if(c=='.')return 0;                      /* never touch dotted stem  */
+        if((c>='A'&&c<='Z')||(c>='a'&&c<='z'))alpha=1; }
+    return alpha?stem:0; }
+
 /* LEAF segment that is a human-readable TITLE SLUG: a content-item
  * identifier (blog post / news article / product title) where the
  * whole slug - words AND id - is a VALUE, not distinct code surface.
@@ -394,6 +544,38 @@ static int is_slug(const char*s,size_t n,int last){
         if(c=='-'){ hy++; continue; }
         if(c>='A'&&c<='Z')return 0;              /* lowercase-only slug  */
     }
+    return hy>=2; }
+
+/* known content/listing section words. A digit-less multi-word title slug
+ * sitting directly under one of these (e.g. /blog/a-brief-history-of-time,
+ * /news/how-to-lick-your-own-toes) is a content-item VALUE hitting one
+ * render handler, so it folds to a single representative. Gating on the
+ * PARENT is what keeps distinct route names under /api/, /v1/, ... from
+ * ever being merged. Case-insensitive; O(1) over a fixed word list. */
+static int is_content_section(const char*s,size_t n){
+    static const char*const W[]={"blog","blogs","post","posts","article",
+        "articles","news","story","stories","tag","tags","category",
+        "categories","cat","cats","catalog","product","products","item",
+        "items","topic","topics","thread","threads","forum","forums",
+        "comment","comments","review","reviews","page","pages","section",
+        "sections","listing","listings",0};
+    for(int i=0;W[i];i++){ size_t l=strlen(W[i]); if(l!=n)continue;
+        size_t j=0; for(;j<n;j++){ char c=s[j];
+            if(c>='A'&&c<='Z')c+=32; if(c!=W[i][j])break; }
+        if(j==n)return 1; }
+    return 0; }
+
+/* digit-less form of is_slug(): a multi-word lowercase leaf that does NOT
+ * end in a numeric id. Only consulted when the parent is a content section
+ * (is_content_section), so it cannot merge distinct routes the way a
+ * blanket rule would. Same guards as is_slug minus the trailing-digit. */
+static int is_text_slug(const char*s,size_t n,int last){
+    if(!last||n<12)return 0;
+    int hy=0;
+    for(size_t i=0;i<n;i++){ char c=s[i];
+        if(c=='.')return 0;
+        if(c=='-'){ hy++; continue; }
+        if(c>='A'&&c<='Z')return 0; }
     return hy>=2; }
 
 /* scan-artifact / invalid-URL detector: drops fuzzer payloads, embedded
@@ -512,7 +694,7 @@ static void garbage_init(void){
 static int ac_scan(const char*s,size_t n,unsigned char mask){
     int st=0;
     for(size_t i=0;i<n;i++){
-        st=acg[st][(unsigned char)tolower((unsigned char)s[i])];
+        st=acg[st][LO[(unsigned char)s[i]]];
         if(aco[st]&mask) return 1; }
     return 0; }
 /* fuzzer / crawler-recursion artefact: a short chunk (2..24 bytes)
@@ -1124,42 +1306,98 @@ static size_t query_keys(const char*q,size_t n,char*out,size_t cap){
     return o; }
 
 int main(int argc,char**argv){
-    int F=1,S=0,K=0,P=0,W=1,C=1,V=0,X=0,c; /* clean defaults: sanity gate +
+    int F=1,S=0,K=0,P=0,W=1,C=1,V=0,X=0,FI=0,c; /* clean defaults: sanity gate +
                                        noise-filter + case-fold + wayback +
-                                       canonical (X=0 means gate ENABLED) */
-    while((c=getopt(argc,argv,"fkpwcWrasxV"))!=-1){
+                                       canonical (X=0 means gate ENABLED).
+                                       FI=0: object-ids PRESERVED (v18) */
+    while((c=getopt(argc,argv,"fkpwcWrasxVF"))!=-1){
         if(c=='k')K=1; else if(c=='p')P=1;
         else if(c=='a')F=0;                          /* keep ALL assets */
         else if(c=='s')S=1;                          /* case-sensitive path */
         else if(c=='x')X=1;                          /* keep invalid URLs */
+        else if(c=='F')FI=1;                         /* fold ids (N/U/H/stem) */
         else if(c=='W')W=0; else if(c=='r')C=0;      /* opt-outs */
         else if(c=='f'||c=='w'||c=='c'){ /* legacy no-ops (already default) */ }
         else if(c=='V')V=1;
         else { fprintf(stderr,
-          "usage: udud [-x keep-invalid][-a keep-assets][-s case-sensitive]"
-          "[-k][-p][-W][-r][-V]\n");
+          "usage: udud [-F fold-ids][-x keep-invalid][-a keep-assets]"
+          "[-s case-sensitive][-k][-p][-W][-r][-V]\n");
           return 2; } }
+    lo_init();
+    /* v15: 64 KB output stdio buffer so fwrite() amortises syscalls. Input
+     * is read with our own block reader below - bypasses getline()'s per-
+     * line buffer-growth check and the byte-by-byte stdio scan for '\n'. */
+    static char io_out[1<<16];
+    setvbuf(stdout, io_out, _IOFBF, sizeof io_out);
     if(X) g_nojunk=0;
     if(!X) garbage_init();
     tab_init(1<<16);
-    char*buf=NULL; size_t bcap=0; ssize_t bl; char sig[8192];
+    /* v15 line reader: read() into a 128 KB block buffer, memchr for '\n',
+     * yield a (const char*, size_t) pair. A line that crosses the buffer
+     * boundary is moved to the start with memmove and the next read()
+     * extends it. Real-world recon URL lines are <2 KB; the buffer holds
+     * thousands of them per syscall. */
+    #define LBUF (1u<<17)
+    static char rbuf[LBUF];
+    size_t r_off=0, r_end=0;
+    int in_eof=0;
     unsigned long long kept=0,total=0;
+    char sig[8192];
+    /* v15: fast 3-byte "://" locator. memmem(...,"://",3) uses Two-Way
+     * matching with setup cost amortised over longer needles; on a 3-byte
+     * needle a direct memchr-for-':' + 2-byte compare is faster. */
+    #define FIND_SCHEME_SEP(P,REM) ({                                       \
+        const char*_p=(P); size_t _r=(REM); const char*_hit=NULL;           \
+        while(_r>=3){ const char*_c=memchr(_p,':',_r-2);                    \
+            if(!_c) break;                                                  \
+            if(_c[1]=='/'&&_c[2]=='/'){ _hit=_c; break; }                   \
+            size_t _adv=(size_t)(_c-_p)+1; _p+=_adv; _r-=_adv; }            \
+        _hit; })
 
-    while((bl=getline(&buf,&bcap,stdin))!=-1){
-        while(bl&&(buf[bl-1]=='\n'||buf[bl-1]=='\r')) buf[--bl]=0;
-        if(!bl) continue; total++;
-        const char*line=buf; size_t L=(size_t)bl;
+    for(;;){
+        /* fetch next line from rbuf; return as (const char*, size_t) without
+         * copying. line is NOT NUL-terminated; we always carry the length. */
+        const char*line; size_t L;
+        for(;;){
+            if(r_off<r_end){
+                char*nl=memchr(rbuf+r_off,'\n',r_end-r_off);
+                if(nl){
+                    line=rbuf+r_off; L=(size_t)(nl-(rbuf+r_off));
+                    while(L&&(line[L-1]=='\r')) L--;
+                    r_off=(size_t)(nl-rbuf)+1; goto have_line; } }
+            if(in_eof){
+                if(r_off<r_end){
+                    line=rbuf+r_off; L=r_end-r_off;
+                    while(L&&(line[L-1]=='\r')) L--;
+                    r_off=r_end; goto have_line; }
+                goto done; }
+            /* shift remainder, refill */
+            if(r_off){ memmove(rbuf,rbuf+r_off,r_end-r_off); r_end-=r_off; r_off=0; }
+            if(r_end==LBUF){
+                /* pathological: a single line longer than the buffer.
+                 * Emit what we have (truncated) so the program does not
+                 * loop forever; real URL lines never hit this. */
+                line=rbuf; L=r_end;
+                while(L&&(line[L-1]=='\r')) L--;
+                r_off=r_end; goto have_line; }
+            ssize_t got=read(0,rbuf+r_end,LBUF-r_end);
+            if(got<0){ if(errno==EINTR) continue; in_eof=1; }
+            else if(got==0) in_eof=1;
+            else r_end+=(size_t)got;
+        }
+        have_line:
+        if(!L) continue; total++;
 
         /* scheme + double-scheme repair */
         const char*p=line; size_t rem=L; const char*sch=p; size_t schl=0;
-        const char*sep=memmem(p,rem,"://",3);
+        const char*sep=FIND_SCHEME_SEP(p,rem);
         if(sep){ schl=sep-p; p=sep+3; rem=L-(p-line);
             for(int g=1;g;){ g=0;
                 if(rem>=5&&!strncasecmp(p,"https",5)&&(p[5]==':'||p[5]=='/')){
-                    const char*s2=memmem(p,rem,"://",3);
+                    const char*s2=FIND_SCHEME_SEP(p,rem);
                     if(s2){sch=p;schl=5;p=s2+3;rem=L-(p-line);g=1;}
                 } else if(rem>=4&&!strncasecmp(p,"http",4)&&(p[4]==':'||p[4]=='/')){
-                    const char*s2=memmem(p,rem,"://",3);
+                    const char*s2=FIND_SCHEME_SEP(p,rem);
                     if(s2){sch=p;schl=4;p=s2+3;rem=L-(p-line);g=1;} } } }
 
         /* authority */
@@ -1204,41 +1442,78 @@ int main(int argc,char**argv){
                 size_t s=e; while(s&&pp[s-1]!='/')s--;
                 if(tail_static(pp+s,e-s)==1) qok=0; }
 
-        /* lowercased host buffer (+ optional wayback clean) */
+        /* lowercased host buffer (+ optional wayback clean). v15: branch-free
+         * ASCII fold compiles to a SIMD case-mask the LO-LUT indirection
+         * could not. */
         char hb[1024]; size_t hbn=hostn<sizeof hb?hostn:sizeof hb-1;
-        for(size_t i=0;i<hbn;i++) hb[i]=tolower((unsigned char)host[i]);
+        for(size_t i=0;i<hbn;i++){
+            unsigned char c=(unsigned char)host[i];
+            hb[i]=(char)(c|(((unsigned)c-'A'<26u)<<5)); }
         const char*H=hb; size_t HN=hbn; if(W) wb_clean(&H,&HN);
+
+        /* v15: scheme lowered ONCE into schb[]; reused by both sig and out. */
+        char schb[16]; size_t schbn=schl<sizeof schb?schl:sizeof schb;
+        for(size_t i=0;i<schbn;i++){
+            unsigned char c=(unsigned char)sch[i];
+            schb[i]=(char)(c|(((unsigned)c-'A'<26u)<<5)); }
 
         /* ---- build dedup signature ---- */
         size_t o=0;
         #define PUT(S,N) do{size_t _n=(N); if(o+_n<sizeof sig){memcpy(sig+o,(S),_n);o+=_n;}}while(0)
         #define PUTC(X)  do{ if(o+1<sizeof sig) sig[o++]=(X);}while(0)
-        for(size_t i=0;i<schl;i++) PUTC(tolower((unsigned char)sch[i]));
+        PUT(schb,schbn);
         PUT("://",3); PUT(H,HN);
         if(port&&!defp){ PUTC(':'); PUT(port,portn); }
         /* path: collapse '//', drop trailing '/', drop dir-index file,
-         * case-fold (unless -s), template numeric/uuid/hex segments */
+         * case-fold (unless -s), template numeric/uuid/hex segments.
+         * v15: collect kept segment offsets in seg_s/seg_l so the canonical
+         * output rebuilder does NOT re-walk the path string. */
+        size_t seg_s[256], seg_l[256]; int segc=0;
         {
             PUTC('/'); size_t i=0; int any=0;
+            /* find boundary of last non-empty segment so 'last' is decided
+             * once per path (was O(seg) per segment in v14). */
+            size_t last_end=pathn; while(last_end&&pp[last_end-1]=='/')last_end--;
             while(i<pathn){
                 while(i<pathn&&pp[i]=='/')i++;            /* collapse slashes */
                 if(i>=pathn)break;
                 size_t s=i; while(i<pathn&&pp[i]!='/')i++;
                 const char*sg=pp+s; size_t sl=i-s;
-                int last=1; for(size_t z=i;z<pathn;z++) if(pp[z]!='/'){last=0;break;}
+                int last=(i>=last_end);
                 if(last&&is_index(sg,sl)) break;          /* /index.php -> / */
                 if(any)PUTC('/'); any=1;
                 size_t stl;
-                if(!P&&all_digits(sg,sl))            PUTC('N');
-                else if(!P&&is_uuid(sg,sl))          PUTC('U');
-                else if(!P&&sl>=12&&is_hex(sg,sl))   PUTC('H');
-                else if(!P&&is_slug(sg,sl,last))     PUTC('S'); /* title slug */
-                else if(!P&&(stl=id_stem(sg,sl))){   /* slug-<id> -> stem+mark */
-                    for(size_t z=0;z<stl;z++)
-                        PUTC(S?sg[z]:tolower((unsigned char)sg[z]));
+                /* parent (preceding) segment is a content/listing word */
+                int pcs=(segc>0&&is_content_section(pp+seg_s[segc-1],seg_l[segc-1]));
+                if(!P&&all_digits(sg,sl)&&(FI||pcs)) PUTC('N'); /* numeric id:
+                       folds under a content parent (/cat/9 -> /cat/N) always,
+                       elsewhere only with -F (so /api/users/123 is preserved) */
+                else if(!P&&FI&&is_uuid(sg,sl))      PUTC('U');
+                else if(!P&&FI&&sl>=12&&is_hex(sg,sl)) PUTC('H');
+                else if(!P&&(is_slug(sg,sl,last)||
+                        (last&&pcs&&is_text_slug(sg,sl,last))))
+                                                     PUTC('S'); /* title slug */
+                else if(!P&&FI&&((stl=id_stem(sg,sl))||
+                             (stl=mixed_id_stem(sg,sl)))){ /* slug-<id> -> stem+mark */
+                    size_t avail=sizeof sig>o?sizeof sig-1-o:0;
+                    size_t n=stl<avail?stl:avail;
+                    if(S) memcpy(sig+o,sg,n);
+                    else for(size_t z=0;z<n;z++){
+                        unsigned char c=(unsigned char)sg[z];
+                        /* branch-free ASCII fold; gcc -O3 vectorises this */
+                        sig[o+z]=(char)(c|(((unsigned)c-'A'<26u)<<5)); }
+                    o+=n;
                     PUT("-#",2); }
-                else for(size_t z=0;z<sl;z++)
-                    PUTC(S?sg[z]:tolower((unsigned char)sg[z]));
+                else {
+                    size_t avail=sizeof sig>o?sizeof sig-1-o:0;
+                    size_t n=sl<avail?sl:avail;
+                    if(S) memcpy(sig+o,sg,n);
+                    else for(size_t z=0;z<n;z++){
+                        unsigned char c=(unsigned char)sg[z];
+                        sig[o+z]=(char)(c|(((unsigned)c-'A'<26u)<<5)); }
+                    o+=n;
+                }
+                if(segc<256){ seg_s[segc]=s; seg_l[segc]=sl; segc++; }
             }
         }
         if(qok&&query&&queryn){
@@ -1250,27 +1525,30 @@ int main(int argc,char**argv){
         kept++;
 
         /* ---- emit ---- */
-        if(!C){ fwrite(line,1,L,stdout); putchar('\n'); }
-        else {
+        if(!C){
+            char nl[1]; nl[0]='\n';
+            fwrite(line,1,L,stdout); fwrite(nl,1,1,stdout);
+        } else {
             char out[8192]; size_t r=0;
             #define O(S,N) do{size_t _n=(N); if(r+_n<sizeof out){memcpy(out+r,(S),_n);r+=_n;}}while(0)
             #define OC(X)  do{ if(r+1<sizeof out) out[r++]=(X);}while(0)
-            for(size_t i=0;i<schl;i++) OC(tolower((unsigned char)sch[i]));
+            O(schb,schbn);
             O("://",3); O(H,HN);
             if(port&&!defp){ OC(':'); O(port,portn); }
-            OC('/'); { size_t i=0; int any=0;
-                while(i<pathn){ while(i<pathn&&pp[i]=='/')i++; if(i>=pathn)break;
-                    size_t s=i; while(i<pathn&&pp[i]!='/')i++;
-                    int last=1; for(size_t z=i;z<pathn;z++) if(pp[z]!='/'){last=0;break;}
-                    if(last&&is_index(pp+s,i-s)) break;
-                    if(any)OC('/'); any=1; O(pp+s,i-s); } }
+            OC('/');
+            for(int k=0;k<segc;k++){
+                if(k) OC('/');
+                O(pp+seg_s[k], seg_l[k]);
+            }
             if(qok&&query&&queryn){ char cq[8192];
                 size_t cn=clean_query(query,queryn,cq,sizeof cq);
                 if(cn){ OC('?'); O(cq,cn); } }
-            fwrite(out,1,r,stdout); putchar('\n');
+            /* v15: '\n' goes INTO the buffer; single fwrite per line. */
+            if(r<sizeof out) out[r++]='\n';
+            fwrite(out,1,r,stdout);
         }
     }
-    free(buf);
+    done:
     if(V){ struct rusage ru; getrusage(RUSAGE_SELF,&ru);
         fprintf(stderr,"udud: %llu -> %llu  (peak RSS %ld KB)\n",total,kept,ru.ru_maxrss); }
     return 0;
