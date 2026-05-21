@@ -1,5 +1,23 @@
 /* udud v18 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
  *
+ * v18.5: completed the media-noise asset list. The render-noise drop (on by
+ *      default, -a recovers) already covered mp4/mp3/m4a/avi/mov/webm/wav/ogg/
+ *      flac/mkv but MISSED the audio/video containers that dominate real
+ *      archives, above all m4p (protected/DRM AAC audio) and m4v (MPEG-4 video
+ *      container), plus aac/m4b/wma/aiff/aif/opus/mid/midi/oga/ogv/weba/amr/
+ *      caf/ac3/mpg/mpeg/m2v/wmv/f4v/f4a/3gp/3g2/vob/asf. These are static
+ *      media, never an endpoint that processes a query, so by the same rule as
+ *      images/fonts they are dropped by default and kept under -a. Added to
+ *      NOISE_EXT (the default drop) and SX (static-file: under -a keep the
+ *      file, drop its scanner query). Deliberately NOT added to KX: that table
+ *      drives trunc_ext's prefix match, and a digit-leading ext like 3gp would
+ *      make a bare numeric terminal (the WebObjects ".../0.3" page-id form)
+ *      look like a truncated "3gp" and wrongly drop a real endpoint. Media
+ *      never needs KX anyway (none is a strict prefix of a longer known ext).
+ *      On a real 35k-line recon corpus this removes 1852 media lines (1819
+ *      m4p) with ZERO non-media collateral. Output of corpora WITHOUT these
+ *      extensions (e.g. vulnweb) is unchanged; ts (TypeScript) was NOT added.
+ *
  * v18.4: query-keyset merge is now SUBSET-only, never lossy. A query URL is
  *      dropped iff its key SET is a proper subset of another query URL's key
  *      set on the same templated path; two URLs with DISJOINT (or otherwise
@@ -553,7 +571,9 @@ static int is_uuid(const char*s,size_t n){ if(n!=36)return 0;
  * doc xls sql bak swf ...) are NEVER auto-dropped - they can be findings. */
 static const char*NOISE_EXT[]={"css","png","jpg","jpeg","gif","svg","ico","bmp",
  "webp","tif","tiff","woff","woff2","ttf","eot","otf","mp4","mp3","avi","mov",
- "webm","wav","ogg","m4a","flac","mkv","map",0};
+ "webm","wav","ogg","m4a","m4p","m4b","m4v","aac","wma","aiff","aif","opus",
+ "mid","midi","oga","ogv","weba","amr","caf","ac3","mpg","mpeg","m2v","wmv",
+ "f4v","f4a","3gp","3g2","vob","asf","flac","mkv","map",0};
 static int is_noise(const char*p,size_t n){
     size_t i=n; while(i&&p[i-1]!='.'&&p[i-1]!='/')i--;
     if(!i||p[i-1]!='.')return 0; size_t el=n-i; if(!el||el>=12)return 0;
@@ -861,9 +881,11 @@ static int repeat_junk(const char*s,size_t n){
  * always scanner noise -> keep file, drop query. */
 static const char*SX[]={"css","png","jpg","jpeg","gif","svg","ico","bmp",
  "webp","tif","tiff","woff","woff2","ttf","eot","otf","mp4","mp3","avi","mov",
- "webm","wav","ogg","m4a","flac","mkv","map","txt","csv","md","ini","log",
- "conf","yaml","yml","pdf","doc","docx","xls","xlsx","ppt","pptx","zip","rar",
- "gz","tar","7z","bz2","sql","bak","old","swp","phps",0};
+ "webm","wav","ogg","m4a","m4p","m4b","m4v","aac","wma","aiff","aif","opus",
+ "mid","midi","oga","ogv","weba","amr","caf","ac3","mpg","mpeg","m2v","wmv",
+ "f4v","f4a","3gp","3g2","vob","asf","flac","mkv","map","txt","csv","md","ini",
+ "log","conf","yaml","yml","pdf","doc","docx","xls","xlsx","ppt","pptx","zip",
+ "rar","gz","tar","7z","bz2","sql","bak","old","swp","phps",0};
 /* classify the LAST path segment by its static extension:
  *  0 = not a static file (treat normally, query preserved)
  *  1 = clean terminal static file  (real file: keep, but its query is

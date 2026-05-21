@@ -72,6 +72,11 @@ dropping anything you would actually test.
 - Clean by default. No flags needed. Scanner junk, payload cache values,
   mangled hosts and crawler spam are dropped without asking. Pass `-x`
   if you want the raw stream with no cleaning.
+- Render-noise dropped by default. Images, fonts, stylesheets and static
+  media (mp4, mp3, m4p, m4v, m4a, aac, mov, webm, ... the full audio/video
+  set) are not endpoints, so they are filtered out. Documents and archives
+  (pdf, zip, sql, bak, ...) are NEVER auto-dropped, they can be findings.
+  Pass `-a` to keep every asset.
 - Single C file. No runtime, no config, nothing to install but the
   binary.
 
@@ -107,7 +112,8 @@ usage: udud [-F] [-x] [-a] [-s] [-k] [-p] [-W] [-r] [-V]
        witness). Default keeps every distinct id; -F is the aggressive
        endpoint-discovery mode.
   -x   keep invalid URLs, fully raw, no cleaning
-  -a   keep all assets (do not filter .css/.png/.woff/...)
+  -a   keep all assets (do not filter images/fonts/css/audio/video like
+       .css/.png/.woff/.mp4/.mp3/.m4p/...)
   -s   case-sensitive path matching
   -k   keep param values and every distinct query key-set as its own line
        (dedup on the full query; disables the default query-subset merge
