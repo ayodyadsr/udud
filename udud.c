@@ -1,5 +1,19 @@
 /* udud v18 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
  *
+ * v18.7: drop corrupted content-hash captures. A content_hash_id() leaf whose
+ *      suffix carries a digit immediately followed by a letter (TIP<hex>_P1cIt -
+ *      a stray "cIt" glued onto the real _P1 page selector by the scraper, the
+ *      same class as the _P1http://... embedded-URL artifact the scheme gate
+ *      already removes) is a mangled capture, not an endpoint. A real selector
+ *      is <alpha><digits> and ENDS there, so a digit->letter transition inside
+ *      the suffix never happens in a clean one. New content_hash_junk() predicate
+ *      added to is_garbage()'s terminal-segment block (so it is !X gated: -x
+ *      keeps the raw line). Scoped to the already-narrow content-hash shape, so
+ *      ordinary endpoints are untouched, and the clean witness (...._P1) is still
+ *      emitted, so each dropped line is a pure duplicate. On a real corpus this
+ *      removes 2 such lines (2378->2376) with ZERO other delta; vulnweb stays
+ *      byte-identical to v18.6 on every flag.
+ *
  * v18.6: fold opaque content-hash ids by default. A leaf of the form
  *      <LABEL><opaque-hex-id>[<sep><suffix>] - an uppercase tag whose tail is a
  *      NON-hex letter, followed by a >=8-char hex run carrying at least one hex
@@ -714,6 +728,22 @@ static size_t content_hash_id(const char*s,size_t n,size_t*pre){
     if(e<n&&s[e]!='-'&&s[e]!='_')return 0;         /* end OR '-'/'_' separator  */
     *pre=pl; return e; }
 
+/* CORRUPTED content-hash capture: a content_hash_id() leaf whose suffix carries
+ * a digit immediately followed by a letter (TIPF5053A60A_P1cIt - the legit page
+ * selector is _P1 and a stray "cIt" got glued on by the scraper, exactly like
+ * the _P1http://... embedded-URL artifact the scheme gate already drops). A real
+ * page selector is <alpha><digits> and ENDS there, so a digit->letter transition
+ * inside the suffix never occurs in a clean one. Scoped to the already-narrow
+ * content-hash shape so it cannot touch ordinary endpoints; the clean witness
+ * (...._P1) is still present, so the dropped line is a pure duplicate. !X gated
+ * via is_garbage(), so -x keeps it raw. O(seg)/line, no state. */
+static int content_hash_junk(const char*s,size_t n){
+    size_t pre,e=content_hash_id(s,n,&pre);
+    if(!e)return 0;
+    for(size_t i=e+1;i<n;i++){ char a=s[i-1],b=s[i];
+        if(a>='0'&&a<='9'&&((b>='A'&&b<='Z')||(b>='a'&&b<='z')))return 1; }
+    return 0; }
+
 /* LEAF segment that is a human-readable TITLE SLUG: a content-item
  * identifier (blog post / news article / product title) where the
  * whole slug - words AND id - is a VALUE, not distinct code surface.
@@ -1382,6 +1412,7 @@ static int is_garbage(const char*pp,size_t pn,const char*q,size_t qn){
         if(trunc_ext(seg,sl))        return 1;   /* listproducts.ph  login. */
         if(wvs_tag(seg,sl))          return 1;   /* cShow /A01 /3L /11H  */
         if(header_frag(seg,sl))      return 1;   /* /Connection:  .js:202 */
+        if(content_hash_junk(seg,sl))return 1;   /* TIP<hex>_P1cIt glue  */
       }
     }
     /* whole-path scans LAST: most expensive, lowest marginal hit once the

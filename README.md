@@ -73,7 +73,10 @@ dropping anything you would actually test.
   (`label + # + suffix`), while a different label, suffix or parent segment
   stays distinct. Enumerable ids are untouched: a pure-decimal id keeps no
   hex letter so it is preserved (IDOR counters survive), a bare hex blob has
-  no label and is left to `-F`, and a dotted leaf is never folded.
+  no label and is left to `-F`, and a dotted leaf is never folded. A corrupted
+  capture of one (`TIP14995B514_P1cIt`, where the scraper glued stray letters
+  onto the real `_P1` selector) is dropped as junk, since the clean line is
+  already present; `-x` keeps it raw.
 - Structural folding happens only inside the dedup signature. The line
   printed is always a real URL, unmodified: the first-seen one for a
   group, or the first-seen URL of the surviving (maximal) key-set when
