@@ -40,8 +40,8 @@ dropping anything you would actually test.
   parameters, and matrix-param auth endpoints like `;jsessionid=`.
   Aggressive dedupers drop these.
 - Single-pass. One read of the stream, no cross-line rescans. The default
-  mode holds the kept lines until end of input so each path's query URLs
-  can collapse to their richest witness (see below), so memory is the
+  mode holds the kept lines until end of input so a path's query URL can be
+  dropped when a later one covers its keys (see below), so memory is the
   unique signatures plus the kept output: about 30 MB on a 133 MB /
   781k-line input, single digits on smaller inputs, reading at about
   17 MB/s. The `-k` and `-x` modes stream one line out at a time at
@@ -53,18 +53,22 @@ dropping anything you would actually test.
   its own line. The one numeric exception: a number sitting under a
   content/listing word (`/cat/9/details`, `/blog/124`, `/product/7`) is a
   content-item index, not an access-control object, so it still folds.
-  Title slugs fold too. Query URLs of one path go further: instead of one
-  line per distinct key-set, they collapse to a single witness, the real
-  URL carrying the most distinct query keys (`/home?qs=asd&secondQs=das`
-  and `/home?qs=value` become just the two-key one). A no-query URL of the
-  same path is kept as its own separate line. The result is exact dedup
-  that stays structurally smart, not `sort -u`. Pass `-F` to fold every id
-  (the aggressive endpoint-discovery mode: `/api/users/123` and `/222`
-  collapse to one witness); pass `-k` to keep every distinct query key-set
-  as its own line instead of merging.
+  Title slugs fold too. Query URLs of one path go further, but never
+  lossily: a query URL is dropped only when its key SET is a subset of
+  another query URL's on the same path, so the survivor loses no parameter
+  (`/home?qs=asd&secondQs=das` and `/home?qs=value` become just the two-key
+  one, because `{qs}` is contained in `{qs,secondQs}`). Two URLs with
+  different, non-overlapping keys both stay (`/product/N?is_prod=false` and
+  `/product/N?is_debug=true` are two lines: each carries surface the other
+  does not). A no-query URL of the same path is kept as its own separate
+  line. The result is exact dedup that stays structurally smart, not
+  `sort -u`. Pass `-F` to fold every id (the aggressive endpoint-discovery
+  mode: `/api/users/123` and `/222` collapse to one witness); pass `-k` to
+  keep every distinct query key-set as its own line instead of merging.
 - Structural folding happens only inside the dedup signature. The line
   printed is always a real URL, unmodified: the first-seen one for a
-  group, or the richest real query URL when query variants are merged.
+  group, or the first-seen URL of the surviving (maximal) key-set when
+  subset query variants are merged.
 - Clean by default. No flags needed. Scanner junk, payload cache values,
   mangled hosts and crawler spam are dropped without asking. Pass `-x`
   if you want the raw stream with no cleaning.
@@ -106,7 +110,7 @@ usage: udud [-F] [-x] [-a] [-s] [-k] [-p] [-W] [-r] [-V]
   -a   keep all assets (do not filter .css/.png/.woff/...)
   -s   case-sensitive path matching
   -k   keep param values and every distinct query key-set as its own line
-       (dedup on the full query; disables the default query-witness merge
+       (dedup on the full query; disables the default query-subset merge
        and restores streaming output)
   -p   no path templating at all (also drops the title-slug fold)
   -W   opt out of wayback-noise handling
@@ -309,14 +313,16 @@ every id is templated (digits to `N`, UUID to `U`, long hex to `H`,
 `stem-<id>` to `stem-#`) regardless of context.
 
 The query decides the grouping. A URL with no query gets its own
-signature. A URL with a query is grouped by path alone (the key-set is
-not part of the signature in the default mode), so every query variant of
-one path shares a group and only the witness with the most distinct keys
-is kept; the no-query URL stays a separate group. Because that richest
-witness can arrive after a poorer one, the default output is buffered and
-written at end of input, one real URL per group in first-seen order. Pass
-`-k` to put the full query in the signature instead, which keeps every
-distinct key-set on its own line and restores streaming output.
+signature. Query URLs of one path are grouped by path alone, then pruned
+by subset: among the query variants of a path udud keeps the antichain of
+maximal key-sets, dropping a variant only when its keys are a subset of a
+kept one (the survivor loses no parameter). Variants with non-overlapping
+keys all stay, and the no-query URL stays a separate group. Because a
+covering superset can arrive after a subset, the default output is
+buffered and written at end of input, the kept real URLs in first-seen
+order. Pass `-k` to put the full query in the signature instead, which
+keeps every distinct key-set on its own line and restores streaming
+output.
 
 Only the signature is compared and the URL that gets printed is never
 rewritten, just selected. Memory scales with the number of unique

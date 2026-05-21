@@ -1,24 +1,27 @@
 /* udud v18 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
  *
- * v18.3: query-keyset MERGE in the default mode. Before, two query URLs of one
- *      templated path with different key SETS stayed separate lines, so
- *      /home?qs=asd&secondQs=das and /home?qs=secondValue were two outputs.
- *      They now collapse to ONE representative: the real URL carrying the MOST
- *      distinct query keys (tie keeps first-seen). A no-query URL of the same
- *      path is its OWN group and is never absorbed (e.g. /home and /home?x
- *      stay two lines). Rule, per request: aggressive one-per-path collapse
- *      among query URLs, knowingly dropping a disjoint-keyset variant in
- *      favour of the richest; the common nested case (?a vs ?a&b) loses
- *      nothing since the richer is a superset. The richest can appear AFTER a
- *      poorer one, which streaming cannot un-emit, so default output is now
- *      DEFERRED to EOF: one record per group in first-seen order, replaced in
- *      place when a richer query URL arrives. Cost is holding the kept output
- *      lines in the arena until EOF (RAM ~2x the dedup-key arena; still far
- *      below urldedupe/uro, speed within noise). ONLY the default keyset mode
- *      merges; -k (full query) and -x (raw) keep the old per-distinct
- *      STREAMING behaviour, verified byte-identical to v18.2 on
- *      gau/vulnweb/wb-full. Emitted lines are always real first-seen/richest
- *      URLs (merge output is a strict subset of v18.2 default output).
+ * v18.4: query-keyset merge is now SUBSET-only, never lossy. A query URL is
+ *      dropped iff its key SET is a proper subset of another query URL's key
+ *      set on the same templated path; two URLs with DISJOINT (or otherwise
+ *      incomparable) key sets BOTH survive. So /home?qs=asd&secondQs=das and
+ *      /home?qs=secondValue collapse to the first (because {qs} is contained
+ *      in {qs,secondQs}, the survivor loses no parameter), while
+ *      /product/N?is_prod=false and /product/N?is_debug=true stay TWO lines
+ *      (is_prod and is_debug are different surface; neither contains the
+ *      other). v18.3 had collapsed those to one richest witness, which silently
+ *      dropped a real distinct parameter - reverted here. We keep, per base
+ *      path, the ANTICHAIN of maximal key sets: a new key set is dropped if
+ *      subset of any kept one, else it is added and any kept set it now
+ *      supersedes is dropped. A no-query URL of the same path is its OWN group
+ *      and is never absorbed (/home and /home?x stay two lines). A covering
+ *      superset can arrive AFTER a subset, which streaming cannot un-emit, so
+ *      default output is DEFERRED to EOF: kept records are written in first-
+ *      seen order at EOF. Cost is holding the kept output lines in the arena
+ *      until EOF (RAM ~2x the dedup-key arena; still far below urldedupe/uro,
+ *      speed within noise). ONLY the default keyset mode merges; -k (full
+ *      query) and -x (raw) keep the per-distinct STREAMING behaviour, verified
+ *      byte-identical to v18.2 on gau/vulnweb/wb-full. Emitted lines are always
+ *      real first-seen URLs (merge output is a strict subset of v18.2 default).
  *
  * v18.2: perf only, output BYTE-IDENTICAL to v18 on every flag and corpus
  *      (verified on gau/vulnweb/wb-full + synthetic repeat-artefact cases).
@@ -459,23 +462,33 @@ static int tab_add(const char *s, size_t n){
     tab[j].h=h; tab[j].off=arena_put(s,n); tab[j].len=(unsigned)n; tab_cnt++; return 1;
 }
 
-/* ---------- deferred-emit records (query-keyset merge) ----------
- * Default keyset mode collapses every query-bearing URL of one templated
- * path into the single richest representative (most distinct params; tie
- * keeps first-seen). The richest can appear AFTER a poorer one in the
- * stream, so output is held until EOF: one Rec per group, in first-seen
- * order. No-query URLs form their own group (sig has no '?') and are kept
- * first-seen, never absorbed by / absorbing a query group. */
-typedef struct { size_t off; unsigned len; unsigned pcount; } Rec;
+/* ---------- deferred-emit records (query-keyset SUBSET merge) ----------
+ * Default keyset mode keeps one record per distinct query key-set (the dedup
+ * sig already carries the sorted key-set), then drops a record whose key-set
+ * is a SUBSET of another record of the SAME path: a covered variant adds no
+ * new parameter, so removing it loses no surface, while DISJOINT key-sets
+ * (e.g. ?is_prod vs ?is_debug) are both kept. /home?qs collapses into
+ * /home?qs&secondQs (subset) but /product?is_prod and /product?is_debug both
+ * survive. A no-query URL is its own record, never merged with a query one.
+ * The covering superset can appear AFTER the subset and stdout cannot un-emit,
+ * so default output is held until EOF and emitted in first-seen order.
+ * Each query Rec stores its key-set bytes plus a link (gnext) through all
+ * records of its base path so subset elimination is a per-group scan. */
+typedef struct { size_t off; unsigned len;      /* emitted line in arena   */
+                 size_t ks_off; unsigned ks_len;/* sorted key-set in arena */
+                 int gnext;                      /* next rec, same base     */
+                 char dropped; } Rec;            /* subsumed -> not emitted */
 static Rec   *recs = NULL;
 static size_t rec_cap = 0, rec_cnt = 0;
-static void rec_push(size_t off, unsigned len, unsigned pc){
+static void rec_push(size_t off, unsigned len, size_t ks_off, unsigned ks_len, int gnext){
     if(rec_cnt>=rec_cap){ rec_cap=rec_cap?rec_cap*2:4096;
         if(!(recs=realloc(recs,rec_cap*sizeof(Rec)))){perror("realloc");exit(1);} }
-    recs[rec_cnt].off=off; recs[rec_cnt].len=len; recs[rec_cnt].pcount=pc; rec_cnt++;
+    recs[rec_cnt].off=off; recs[rec_cnt].len=len;
+    recs[rec_cnt].ks_off=ks_off; recs[rec_cnt].ks_len=ks_len;
+    recs[rec_cnt].gnext=gnext; recs[rec_cnt].dropped=0; rec_cnt++;
 }
-/* find sig; on miss insert it bound to the next record index. *is_new tells
- * the caller whether to push a fresh Rec (1) or update recs[return] (0). */
+/* dedup on the full sig (path + sorted key-set). On miss insert it bound to
+ * the next record index; *is_new tells the caller to push a fresh Rec. */
 static unsigned tab_group(const char *s, size_t n, int *is_new){
     if(tab_cnt*4>=tab_cap*3) tab_grow();
     unsigned long long h=fnv1a(s,n); size_t j=h&(tab_cap-1);
@@ -485,6 +498,48 @@ static unsigned tab_group(const char *s, size_t n, int *is_new){
     tab[j].h=h; tab[j].off=arena_put(s,n); tab[j].len=(unsigned)n;
     tab[j].rec=(unsigned)rec_cnt; tab_cnt++; *is_new=1; return (unsigned)rec_cnt;
 }
+
+/* ---------- base-path group table (head of each path's record list) ----------
+ * keyed on the sig prefix up to and including '?', so every query key-set of
+ * one path shares a list; value is the most-recent record index (list head). */
+typedef struct { unsigned long long h; size_t off; unsigned len; int head; } GSlot;
+static GSlot *gtab=NULL; static size_t gcap=0,gcnt=0;
+static void gtab_init(size_t c){ gcap=1; while(gcap<c) gcap<<=1;
+    if(!(gtab=calloc(gcap,sizeof(GSlot)))){perror("calloc");exit(1);} }
+static void gtab_grow(void){ size_t oc=gcap; GSlot*og=gtab; gcap<<=1;
+    if(!(gtab=calloc(gcap,sizeof(GSlot)))){perror("calloc");exit(1);}
+    for(size_t i=0;i<oc;i++){ if(!og[i].len)continue; size_t j=og[i].h&(gcap-1);
+        while(gtab[j].len) j=(j+1)&(gcap-1); gtab[j]=og[i]; } free(og); }
+/* return slot index for base prefix s[0..n); new slots get head=-1. */
+static size_t gtab_slot(const char*s,size_t n){
+    if(gcnt*4>=gcap*3) gtab_grow();
+    unsigned long long h=fnv1a(s,n); size_t j=h&(gcap-1);
+    while(gtab[j].len){ if(gtab[j].h==h&&gtab[j].len==n&&!memcmp(arena+gtab[j].off,s,n))
+            return j;
+        j=(j+1)&(gcap-1); }
+    gtab[j].h=h; gtab[j].off=arena_put(s,n); gtab[j].len=(unsigned)n;
+    gtab[j].head=-1; gcnt++; return j; }
+
+/* compare two query keys the same way query_keys() sorted them: memcmp over
+ * the shared prefix, then shorter token first (so "a" < "ab"). */
+static int key_cmp(const char*a,size_t al,const char*b,size_t bl){
+    size_t m=al<bl?al:bl; int r=m?memcmp(a,b,m):0;
+    if(r) return r; return al<bl?-1:al>bl?1:0; }
+/* given two sorted '&'-joined key-sets, set *sub=1 if A is a subset of B and
+ * *sup=1 if B is a subset of A (both 1 only if equal). Tokens are walked in
+ * lockstep counting matches; A subset of B iff every A token matched. */
+static void ks_relation(const char*a,size_t an,const char*b,size_t bn,int*sub,int*sup){
+    size_t ia=0,ib=0; int na=0,nb=0,common=0;
+    while(ia<an||ib<bn){
+        if(ia>=an){ size_t e=ib; while(e<bn&&b[e]!='&')e++; nb++; ib=e<bn?e+1:e; continue; }
+        if(ib>=bn){ size_t e=ia; while(e<an&&a[e]!='&')e++; na++; ia=e<an?e+1:e; continue; }
+        size_t ae=ia; while(ae<an&&a[ae]!='&')ae++;
+        size_t be=ib; while(be<bn&&b[be]!='&')be++;
+        int c=key_cmp(a+ia,ae-ia,b+ib,be-ib);
+        if(c==0){ common++; na++; nb++; ia=ae<an?ae+1:ae; ib=be<bn?be+1:be; }
+        else if(c<0){ na++; ia=ae<an?ae+1:ae; }
+        else { nb++; ib=be<bn?be+1:be; } }
+    *sub=(common==na); *sup=(common==nb); }
 
 /* ---------- predicates ---------- */
 static int all_digits(const char*s,size_t n){ if(!n)return 0;
@@ -1433,6 +1488,7 @@ int main(int argc,char**argv){
     if(X) g_nojunk=0;
     if(!X){ garbage_init(); tld_init(); }
     tab_init(1<<16);
+    gtab_init(1<<14);
     /* v15 line reader: read() into a 128 KB block buffer, memchr for '\n',
      * yield a (const char*, size_t) pair. A line that crosses the buffer
      * boundary is moved to the start with memmove and the next read()
@@ -1443,9 +1499,9 @@ int main(int argc,char**argv){
     size_t r_off=0, r_end=0;
     int in_eof=0;
     unsigned long long kept=0,total=0;
-    /* MERGE = default keyset mode: collapse a path's query URLs into the
-     * richest one (deferred emit). -k (full query) and -x (raw) keep the
-     * per-distinct streaming behaviour untouched. */
+    /* MERGE = default keyset mode: drop a path's query URL when its key set
+     * is a subset of another's; disjoint key sets all survive (deferred
+     * emit). -k (full query) and -x (raw) keep streaming, untouched. */
     int MERGE=(!K&&!X);
     char sig[8192];
     /* v15: fast 3-byte "://" locator. memmem(...,"://",3) uses Two-Way
@@ -1621,24 +1677,20 @@ int main(int argc,char**argv){
                 if(segc<256){ seg_s[segc]=s; seg_l[segc]=sl; segc++; }
             }
         }
-        /* is_qgroup: this URL carries a meaningful query keyset, so in MERGE
-         * mode its group sig ends with a bare '?' (no keys) and pcount = the
-         * number of distinct query keys decides who represents the group. */
-        int is_qgroup=0; unsigned pcount=0;
+        /* is_qgroup: this URL carries a meaningful query key-set. qstart marks
+         * where the sorted keys begin in sig, so sig[0..qstart) (incl. '?') is
+         * the base-path group key and sig[qstart..o) is the key-set. */
+        int is_qgroup=0; size_t qstart=0;
         if(qok&&query&&queryn){
             if(K){ PUTC('?'); PUT(query,queryn); }
             else { char qk[4096]; size_t qn=query_keys(query,queryn,qk,sizeof qk);
-                   if(qn){ PUTC('?');
-                       if(MERGE){ is_qgroup=1; pcount=1;
-                           for(size_t z=0;z<qn;z++) if(qk[z]=='&') pcount++; }
-                       else PUT(qk,qn); } } }
+                   if(qn){ PUTC('?'); qstart=o; PUT(qk,qn);
+                           if(MERGE) is_qgroup=1; } } }
 
         if(MERGE){
-            int is_new=0; unsigned ri=tab_group(sig,o,&is_new);
-            /* keep existing representative unless this is a strictly richer
-             * query URL for the same group */
-            if(!is_new && !(is_qgroup && pcount>recs[ri].pcount)) continue;
-            /* materialise the representative output line into the arena */
+            int is_new=0; tab_group(sig,o,&is_new);
+            if(!is_new) continue;                 /* exact key-set already seen */
+            /* materialise the emitted line into the arena */
             size_t off=arena_len;
             if(!C){ arena_put(line,L); arena_put("\n",1); }
             else {
@@ -1658,8 +1710,23 @@ int main(int argc,char**argv){
                 #undef OC
             }
             size_t olen=arena_len-off;
-            if(is_new){ rec_push(off,(unsigned)olen,pcount); kept++; }
-            else { recs[ri].off=off; recs[ri].len=(unsigned)olen; recs[ri].pcount=pcount; }
+            if(!is_qgroup){ rec_push(off,(unsigned)olen,0,0,-1); kept++; continue; }
+            /* query record: stash key-set, then drop-or-keep against the path's
+             * existing records (an antichain of maximal key-sets). */
+            size_t ks_off=arena_put(sig+qstart,o-qstart); unsigned ks_len=(unsigned)(o-qstart);
+            size_t gs=gtab_slot(sig,qstart);
+            int subsumed=0;
+            for(int w=gtab[gs].head; w!=-1; w=recs[w].gnext){
+                if(recs[w].dropped) continue;
+                int sub=0,sup=0;
+                ks_relation(arena+ks_off,ks_len,arena+recs[w].ks_off,recs[w].ks_len,&sub,&sup);
+                if(sub){ subsumed=1; break; }      /* covered by an existing one */
+                if(sup){ recs[w].dropped=1; kept--; } /* new one covers this one  */
+            }
+            int idx=(int)rec_cnt;
+            rec_push(off,(unsigned)olen,ks_off,ks_len,gtab[gs].head);
+            gtab[gs].head=idx;
+            if(subsumed) recs[idx].dropped=1; else kept++;
             continue;
         }
 
@@ -1694,7 +1761,7 @@ int main(int argc,char**argv){
     }
     done:
     if(MERGE) for(size_t i=0;i<rec_cnt;i++)
-        fwrite(arena+recs[i].off,1,recs[i].len,stdout);
+        if(!recs[i].dropped) fwrite(arena+recs[i].off,1,recs[i].len,stdout);
     if(V){ struct rusage ru; getrusage(RUSAGE_SELF,&ru);
         fprintf(stderr,"udud: %llu -> %llu  (peak RSS %ld KB)\n",total,kept,ru.ru_maxrss); }
     return 0;
