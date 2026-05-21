@@ -65,6 +65,15 @@ dropping anything you would actually test.
   `sort -u`. Pass `-F` to fold every id (the aggressive endpoint-discovery
   mode: `/api/users/123` and `/222` collapse to one witness); pass `-k` to
   keep every distinct query key-set as its own line instead of merging.
+- Opaque content-hash ids fold by default. A leaf like `TIP14995B514_P1`
+  (an uppercase label whose tail is a non-hex letter, then a hex run of 8+
+  chars carrying at least one `A-F`, then an optional `-`/`_` suffix) is a
+  content-ADDRESSED handle, not a guessable counter. Thousands of them hit
+  one render template, so they collapse to a single witness per template
+  (`label + # + suffix`), while a different label, suffix or parent segment
+  stays distinct. Enumerable ids are untouched: a pure-decimal id keeps no
+  hex letter so it is preserved (IDOR counters survive), a bare hex blob has
+  no label and is left to `-F`, and a dotted leaf is never folded.
 - Structural folding happens only inside the dedup signature. The line
   printed is always a real URL, unmodified: the first-seen one for a
   group, or the first-seen URL of the surviving (maximal) key-set when

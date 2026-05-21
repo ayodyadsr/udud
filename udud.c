@@ -1,5 +1,25 @@
 /* udud v18 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
  *
+ * v18.6: fold opaque content-hash ids by default. A leaf of the form
+ *      <LABEL><opaque-hex-id>[<sep><suffix>] - an uppercase tag whose tail is a
+ *      NON-hex letter, followed by a >=8-char hex run carrying at least one hex
+ *      LETTER (e.g. TIP14995B514_P1) - is a content-ADDRESSED handle, not an
+ *      enumerable counter. Such schemes mint thousands of distinct ids that all
+ *      hit ONE render template, so a hunter tests it once. content_hash_id()
+ *      folds the id to a single marker in the SIGNATURE (label + '#' + suffix):
+ *      every <LABEL><hex>_<suffix> collapses to ONE real first-seen witness,
+ *      while a DIFFERENT label, suffix, locale or parent segment stays distinct.
+ *      Default-on (no -F): these ids are high-entropy and never guessable, so
+ *      folding them costs no attack surface. Strict so nothing enumerable is
+ *      lost - a pure-decimal id (INV00012345) keeps >=1 hex letter false so it
+ *      is NOT folded (IDOR counters stay distinct), a pure uppercase-hex blob
+ *      trims its label to len 0 and is rejected (that is the -F is_hex job), and
+ *      a '.' or trailing letter after the id rejects it (never touch dotted).
+ *      On a real recon corpus this folds 1361 such leaves to 301 witnesses
+ *      (one per locale/version/device/suffix template) with ZERO non-matching
+ *      collateral; corpora without the pattern (e.g. vulnweb) are byte-identical
+ *      to v18.5 on every flag.
+ *
  * v18.5: completed the media-noise asset list. The render-noise drop (on by
  *      default, -a recovers) already covered mp4/mp3/m4a/avi/mov/webm/wav/ogg/
  *      flac/mkv but MISSED the audio/video containers that dominate real
@@ -657,6 +677,42 @@ static size_t mixed_id_stem(const char*s,size_t n){
         if(c=='.')return 0;                      /* never touch dotted stem  */
         if((c>='A'&&c<='Z')||(c>='a'&&c<='z'))alpha=1; }
     return alpha?stem:0; }
+
+/* segment of the form <LABEL><opaque-hex-id>[<sep><suffix>] where LABEL is an
+ * uppercase tag whose tail is a NON-hex letter (TIP, IMG, DOC...) and the id is
+ * a run of >=8 hex digits carrying at least one hex LETTER (A-F) - i.e. a
+ * content-addressed handle like TIP14995B514_P1, not an enumerable counter.
+ * Help-tip / asset id schemes mint thousands of distinct <LABEL><hex>_P1
+ * articles that all hit ONE render template, so a hunter tests it once. We fold
+ * the id to a single marker in the dedup SIGNATURE (label + '#' + suffix) =>
+ * every <LABEL><hex>_<suffix> collapses to ONE real first-seen representative,
+ * while a DIFFERENT label or suffix stays a distinct signature. Strict so
+ * nothing enumerable is lost:
+ *   - LABEL: leading [A-Z] run with trailing hex-letters pushed into the id;
+ *     what remains must be >=2 chars, so its tail is a NON-hex letter. A pure
+ *     uppercase-hex blob trims to len 0 and is REJECTED (those are the -F
+ *     is_hex job and stay preserved by default).
+ *   - id: [0-9A-Fa-f] run, length >=8, MUST contain >=1 hex letter, so a pure
+ *     decimal id (INV00012345) is NOT folded - decimal/IDOR ids stay distinct.
+ *   - after the id: end-of-segment OR a '-'/'_' separator; a '.' or trailing
+ *     letters reject it (matching the other helpers' never-touch-dotted rule).
+ * Default-on (no -F): these ids are high-entropy and never guessable, so folding
+ * them costs no attack surface. O(seg)/line, no state. Returns the id END offset
+ * (start of suffix) and sets *pre to the LABEL length; 0 on no match. */
+static size_t content_hash_id(const char*s,size_t n,size_t*pre){
+    if(n<10)return 0;                              /* >=2 label + >=8 id        */
+    size_t p=0; while(p<n&&s[p]>='A'&&s[p]<='Z')p++;   /* leading UPPER run     */
+    size_t pl=p;                                   /* push trailing hex-letters */
+    while(pl&&s[pl-1]>='A'&&s[pl-1]<='F')pl--;     /*   of the label into id    */
+    if(pl<2)return 0;                              /* label tail = NON-hex letter */
+    size_t e=pl; int hl=0;                         /* id = hex run from pl      */
+    for(;e<n;e++){ char c=s[e];
+        if(c>='0'&&c<='9')continue;
+        if((c>='A'&&c<='F')||(c>='a'&&c<='f')){hl=1;continue;}
+        break; }
+    if(e-pl<8||!hl)return 0;                       /* >=8 hex, >=1 hex letter   */
+    if(e<n&&s[e]!='-'&&s[e]!='_')return 0;         /* end OR '-'/'_' separator  */
+    *pre=pl; return e; }
 
 /* LEAF segment that is a human-readable TITLE SLUG: a content-item
  * identifier (blog post / news article / product title) where the
@@ -1665,7 +1721,7 @@ int main(int argc,char**argv){
                 int last=(i>=last_end);
                 if(last&&is_index(sg,sl)) break;          /* /index.php -> / */
                 if(any)PUTC('/'); any=1;
-                size_t stl;
+                size_t stl,ide,cpre=0;
                 /* parent (preceding) segment is a content/listing word */
                 int pcs=(segc>0&&is_content_section(pp+seg_s[segc-1],seg_l[segc-1]));
                 if(!P&&all_digits(sg,sl)&&(FI||pcs)) PUTC('N'); /* numeric id:
@@ -1687,6 +1743,23 @@ int main(int argc,char**argv){
                         sig[o+z]=(char)(c|(((unsigned)c-'A'<26u)<<5)); }
                     o+=n;
                     PUT("-#",2); }
+                else if(!P&&(ide=content_hash_id(sg,sl,&cpre))){
+                    /* <LABEL><opaque-hex>[sep suffix] -> label + '#' + suffix */
+                    size_t avail=sizeof sig>o?sizeof sig-1-o:0;
+                    size_t n=cpre<avail?cpre:avail;
+                    if(S) memcpy(sig+o,sg,n);
+                    else for(size_t z=0;z<n;z++){
+                        unsigned char c=(unsigned char)sg[z];
+                        sig[o+z]=(char)(c|(((unsigned)c-'A'<26u)<<5)); }
+                    o+=n; PUTC('#');
+                    size_t sfx=sl-ide;             /* suffix kept verbatim     */
+                    avail=sizeof sig>o?sizeof sig-1-o:0;
+                    n=sfx<avail?sfx:avail;
+                    if(S) memcpy(sig+o,sg+ide,n);
+                    else for(size_t z=0;z<n;z++){
+                        unsigned char c=(unsigned char)sg[ide+z];
+                        sig[o+z]=(char)(c|(((unsigned)c-'A'<26u)<<5)); }
+                    o+=n; }
                 else {
                     size_t avail=sizeof sig>o?sizeof sig-1-o:0;
                     size_t n=sl<avail?sl:avail;
