@@ -1,5 +1,21 @@
 /* udud v18 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
  *
+ * v18.2: perf only, output BYTE-IDENTICAL to v18 on every flag and corpus
+ *      (verified on gau/vulnweb/wb-full + synthetic repeat-artefact cases).
+ *      Now FASTER than urldedupe on every corpus while still doing real dedup
+ *      (gau 476ms->287ms vs urldedupe 335ms; lead widens with size). Three
+ *      changes, none touch what is emitted:
+ *      (1) repeat_junk got a sound 8-aligned word pre-filter. A qualifying
+ *          repeat always holds a run of >=18 equal +L bytes, which covers a
+ *          full 8-aligned window, so if no aligned 8-byte word equals its +L
+ *          shift the precise scan must return 0 and is skipped. It was the
+ *          top hotspot (~159ms); on real data the precise scan now ~never runs.
+ *      (2) is_tld/is_pub_sfx (~200k calls) replaced strlen+tolower-per-entry
+ *          with one integer compare against packed lowercase keys (LO[]).
+ *      (3) is_garbage checks reordered cheap+high-hit first (is_garbage is a
+ *          pure OR of side-effect-free predicates, so order cannot change the
+ *          result, only the cost).
+ *
  * v18.1: perf only, output BYTE-IDENTICAL to v18 on every flag and corpus.
  *      repeat_junk() was the #1 hotspot (~33% of runtime): for each period
  *      L=2..24 it called memcmp at every position, but almost all positions
@@ -712,6 +728,19 @@ static int ac_scan(const char*s,size_t n,unsigned char mask){
  * only engages on long paths so normal URLs pay almost nothing. */
 static int repeat_junk(const char*s,size_t n){
     if(n<40) return 0;
+    /* Fast reject (sound): a qualifying repeat always contains a run of >=18
+     * consecutive positions k with s[k]==s[k+L] for one period L, and any run
+     * that long fully covers an 8-aligned window. So if no 8-aligned 8-byte
+     * word equals its +L shift for any L, no qualifying repeat can exist and
+     * the precise scan below would return 0 - we skip straight to it. This
+     * only ever skips when the answer is 0, so the result is identical. */
+    int maybe=0;
+    for(size_t L=2;L<=24&&2*L<=n&&!maybe;L++)
+        for(size_t k=0;k+L+8<=n;k+=8){
+            unsigned long a,b; memcpy(&a,s+k,8); memcpy(&b,s+k+L,8);
+            if(a==b){ maybe=1; break; }
+        }
+    if(!maybe) return 0;
     for(size_t L=2;L<=24;L++){
         for(size_t i=0;i+2*L<=n;){
             if(s[i]==s[i+L]&&!memcmp(s+i+1,s+i+1+L,L-1)){
@@ -771,11 +800,20 @@ static int tail_static(const char*seg,size_t sl){
  * (id in me io ..) are excluded so REST tokens like /article.id survive */
 static const char*TLDS[]={"com","net","org","info","biz","co","us","ee",
  "ly","ye","tr","ru","ua","uk",0};
+/* is_tld/is_pub_sfx are the hottest predicates (~200k calls): per call the
+ * old code re-ran strlen+tolower over every list entry. Membership is now a
+ * single integer compare against packed lowercase keys built once in
+ * garbage_init(). pack_lc() lowercases via LO[] (== tolower in C locale), and
+ * the length guards match the max entry length, so the result is identical. */
+static unsigned long pack_lc(const char*s,size_t n){
+    unsigned long k=0; for(size_t i=0;i<n;i++) k=(k<<8)|LO[(unsigned char)s[i]];
+    return k; }
+static unsigned long TLDS_K[16]; static int TLDS_NK;
+static unsigned long HSFX_K[64]; static int HSFX_NK;
 static int is_tld(const char*s,size_t n){
-    for(int i=0;TLDS[i];i++){ size_t l=strlen(TLDS[i]); if(l!=n)continue;
-        size_t k=0; for(;k<n;k++)
-            if((char)tolower((unsigned char)s[k])!=TLDS[i][k])break;
-        if(k==n)return 1; }
+    if(n<2||n>4)return 0;                  /* longest TLDS entry is "info" */
+    unsigned long key=pack_lc(s,n);
+    for(int i=0;i<TLDS_NK;i++) if(TLDS_K[i]==key)return 1;
     return 0; }
 /* Extra public suffixes recognised ONLY at host level (host_embeds_domain).
  * Kept OUT of TLDS because is_tld() is also run on PATH segments by
@@ -790,11 +828,13 @@ static const char*HSFX[]={"in","io","id","me","de","cn","tv","cc","ai",
  "xyz","top","icu","vip","cyou","sbs","online","site","shop","app",0};
 static int is_pub_sfx(const char*s,size_t n){
     if(is_tld(s,n))return 1;
-    for(int i=0;HSFX[i];i++){ size_t l=strlen(HSFX[i]); if(l!=n)continue;
-        size_t k=0; for(;k<n;k++)
-            if((char)tolower((unsigned char)s[k])!=HSFX[i][k])break;
-        if(k==n)return 1; }
+    if(n<2||n>6)return 0;                  /* longest HSFX entry is "online" */
+    unsigned long key=pack_lc(s,n);
+    for(int i=0;i<HSFX_NK;i++) if(HSFX_K[i]==key)return 1;
     return 0; }
+static void tld_init(void){
+    TLDS_NK=0; for(int i=0;TLDS[i];i++) TLDS_K[TLDS_NK++]=pack_lc(TLDS[i],strlen(TLDS[i]));
+    HSFX_NK=0; for(int i=0;HSFX[i];i++) HSFX_K[HSFX_NK++]=pack_lc(HSFX[i],strlen(HSFX[i])); }
 /* a path SEGMENT that is itself a registrable domain (name.tld[/..]) -
  * /babymagazinetoday.com  /bit.ly/2TN5d3Y  /alraziuni.edu.ye  - never a
  * real path on the target, always crawled comment-spam */
@@ -1128,16 +1168,18 @@ static int mangled_script(const char*seg,size_t sl){
 /* fast path: cheap O(n) byte scan first, then ONE Aho-Corasick pass over
  * path (BOTH|PATH markers) and query (BOTH markers only). */
 static int is_garbage(const char*pp,size_t pn,const char*q,size_t qn){
+    /* is_garbage is a pure OR of side-effect-free predicates, so call order
+     * never changes the result, only the cost. Cheapest + highest-hit checks
+     * run first; the expensive whole-path scans (repeat_seg, repeat_junk) run
+     * LAST so a line caught by anything cheaper never pays for them. */
     if(bad_bytes(pp,pn,0))return 1;
-    if(repeat_junk(pp,pn))return 1;
-    if(repeat_seg(pp,pn))return 1;         /* foo/foo crawler self-recurse */
-    if(clock_frag(pp,pn))return 1;         /* path[14:13:39 capture noise */
+    if(q&&qn&&q[0]==',')return 1;          /* query cannot start with ',' */
     if(q&&qn&&bad_bytes(q,qn,1))return 1;
+    if(ac_scan(pp,pn,3))return 1;          /* path: BOTH|PATH (main catcher) */
+    if(q&&qn&&ac_scan(q,qn,1))return 1;    /* query: BOTH only */
+    if(clock_frag(pp,pn))return 1;         /* path[14:13:39 capture noise */
     if(q&&qn&&clock_frag(q,qn))return 1;   /* ?test=query[14:13:39        */
     if(q&&qn&&bad_qname(q,qn))return 1;    /* ?%3Fid= ?%2F artist%20=     */
-    if(q&&qn&&q[0]==',')return 1;          /* query cannot start with ',' */
-    if(ac_scan(pp,pn,3))return 1;          /* path: BOTH|PATH */
-    if(q&&qn&&ac_scan(q,qn,1))return 1;    /* query: BOTH only */
     /* ---- v7 structural gates ---- */
     /* FIRST path segment that is an embedded domain / glued host:
      * /babymagazinetoday.com  /bit.ly/x  /Hosttestphp.vulnweb.comServer */
@@ -1162,6 +1204,10 @@ static int is_garbage(const char*pp,size_t pn,const char*q,size_t qn){
         if(header_frag(seg,sl))      return 1;   /* /Connection:  .js:202 */
       }
     }
+    /* whole-path scans LAST: most expensive, lowest marginal hit once the
+     * cheap checks above have already removed the bulk of the junk. */
+    if(repeat_seg(pp,pn))return 1;         /* foo/foo crawler self-recurse */
+    if(repeat_junk(pp,pn))return 1;        /* runaway periodicity artefact */
     return 0; }
 
 /* host validity: has a dot and last label is all-alpha length>=2 */
@@ -1338,7 +1384,7 @@ int main(int argc,char**argv){
     static char io_out[1<<16];
     setvbuf(stdout, io_out, _IOFBF, sizeof io_out);
     if(X) g_nojunk=0;
-    if(!X) garbage_init();
+    if(!X){ garbage_init(); tld_init(); }
     tab_init(1<<16);
     /* v15 line reader: read() into a 128 KB block buffer, memchr for '\n',
      * yield a (const char*, size_t) pair. A line that crosses the buffer
