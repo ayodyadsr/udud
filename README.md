@@ -24,10 +24,9 @@
 
 ---
 
-**udud** reads URLs from stdin and writes a deduplicated, pentest-ready set to stdout. Unlike naive deduplicators, udud understands web application routing. It recognizes when different URLs point to the same endpoint by normalizing IDs, UUIDs, hashes, and slugs into templates. It then collapses these duplicates down to the first unique signature it encounters.
+**udud** reads URLs from stdin and outputs a cleaner, deduplicated list for recon and pentesting. Unlike simple dedup tools, udud understands URL structure. It can detect when multiple URLs are actually the same endpoint by recognizing patterns like IDs, UUIDs, hashes, and slugs. Instead of blindly removing duplicates, udud reduces noise while keeping URLs that may still be important for testing.
 
-It does not try to produce the smallest output. It cuts noise without
-dropping anything you would actually test.
+The goal is not the smallest output possible. The goal is cleaner output without losing real attack surface.
 
 ## Features
 
