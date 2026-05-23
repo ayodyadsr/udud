@@ -46,9 +46,15 @@ The goal is not the smallest output possible. The goal is cleaner output without
 - Preserves endpoints with different structures:
   `/profile`
   `/settings`
-- Removes noisy static assets automatically:
-  `.jpg`
-  `.png`
+- Removes noisy static assets automatically such as images, fonts,
+  stylesheets, audio, video, source maps, and other non-endpoint files:
+  `.css`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.ico`, `.bmp`,
+  `.webp`, `.tif`, `.tiff`, `.woff`, `.woff2`, `.ttf`, `.eot`, `.otf`,
+  `.mp4`, `.mp3`, `.avi`, `.mov`, `.webm`, `.wav`, `.ogg`, `.m4a`,
+  `.m4p`, `.m4b`, `.m4v`, `.aac`, `.wma`, `.aiff`, `.aif`, `.opus`,
+  `.mid`, `.midi`, `.oga`, `.ogv`, `.weba`, `.amr`, `.caf`, `.ac3`,
+  `.mpg`, `.mpeg`, `.m2v`, `.wmv`, `.f4v`, `.f4a`, `.3gp`, `.3g2`,
+  `.vob`, `.asf`, `.flac`, `.mkv`, `.map`
 - Keeps meaningful query combinations instead of flattening everything:
   `/home?qs=asd&secondQs=das`
 - Reduces noise without over-deduplicating important URLs.
