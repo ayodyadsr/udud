@@ -24,11 +24,7 @@
 
 ---
 
-**udud** reads URLs from stdin and writes a deduplicated set to stdout. It
-collapses URLs that hit the same endpoint (same path shape, same
-parameter set, with IDs, UUIDs, hashes and slugs treated as templated)
-down to the first one it saw. It does not delete the kinds of URLs a
-pentester still wants to look at.
+**udud** eads URLs from stdin and writes a deduplicated, pentest-ready set to stdout. Unlike naive deduplicators, udud understands web application routing. It recognizes when different URLs point to the same endpoint by normalizing IDs, UUIDs, hashes, and slugs into templates. It then collapses these duplicates down to the first unique signature it encounters.
 
 It does not try to produce the smallest output. It cuts noise without
 dropping anything you would actually test.
