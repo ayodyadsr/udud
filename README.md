@@ -30,38 +30,17 @@ The goal is not to make the output as small as possible. The goal is to make the
 
 ## Features
 
-- Keeps IDOR-style endpoints separate instead of collapsing them:
-  `/api/users/123`
-  `/api/users/222`
-  `/api/users/412/profile`
-- Keeps unique query-based attack surfaces:
-  `/product/123?is_prod=false`
-  `/product/222?is_debug=true`
-- Keeps different domains/scopes instead of merging them:
-  `example.com`
-  `example2.com`
-  `example3.com`
-- Keeps unique blog/content paths that may still expose attack surface:
-  `/blog/how-we-built-our-auth-system`
-- Preserves endpoints with different structures:
-  `/profile`
-  `/settings`
-- Keeps meaningful query combinations instead of flattening everything:
-  `/home?qs=asd&secondQs=das`
-- Removes noisy static assets automatically such as images, fonts,
-  stylesheets, audio, video, source maps, and other non-endpoint files
-
 | Raw Input URL | Other Tools (uro) | udud (Default) | Why udud is Better? |
 |---|---|---|---|
-| `https://api.target.com/v2/tenant/99/billing` | 🟢 KEPT | 🟢 KEPT | Standard first-witness multi-tenant API endpoint. |
-| `https://api.target.com/v2/tenant/100/billing` | 🔴 DROPPED | 🟢 KEPT | Critical BOLA / IDOR target. Many tools blindly remove sequential IDs and can accidentally hide cross-tenant authorization issues. |
-| `https://api.target.com/v2/tenant/100/billing/invoice/pdf` | 🔴 DROPPED | 🟢 KEPT | Deep nested API endpoint. udud keeps unique functionality hidden deeper in the routing structure. |
-| `https://target.com/dashboard/settings/v1/alpha-feature` | 🔴 DROPPED | 🟢 KEPT | Hidden attack surface. Feature-flag or experimental paths may expose admin or internal functionality. |
-| `https://api.target.com/v2/user?id=1&role=admin` | 🟢 KEPT | 🟢 KEPT | Baseline request with a unique parameter set. |
-| `https://api.target.com/v2/user?id=1` | 🔴 DROPPED | 🔴 DROPPED | Correctly removed because `{id}` is fully covered by `{id, role}`. No parameter surface is lost. |
-| `https://api.target.com/v2/user?debug=true&env=staging` | 🔴 DROPPED | 🟢 KEPT | Hidden debug or staging parameters can expose sensitive behavior and are still valuable for testing. |
-| `https://internal-service.target.com/v1/health` | 🔴 DROPPED | 🟢 KEPT | Multi-domain awareness. udud keeps separate hosts and microservices even if the paths look similar. |
-| `https://target.com/assets/videos/promo_main.m4a` | 🟢 KEPT | 🔴 DROPPED | Smart noise filtering. Static media files are removed to keep recon output cleaner and more useful. |
+| `https://api.target.com/v2/tenant/100/billing` | 🔴 DROPPED | 🟢 KEPT | Critical BOLA / IDOR target. Many tools remove sequential IDs after seeing similar paths, which can hide cross-tenant authorization issues. |
+| `https://api.target.com/v2/tenant/100/billing/invoice/pdf` | 🔴 DROPPED | 🟢 KEPT | Deep nested API endpoint. udud preserves unique functionality deeper in the routing structure. |
+| `https://target.com/dashboard/settings/v1/alpha-feature` | 🔴 DROPPED | 🟢 KEPT | Hidden attack surface. Feature-flag or dynamic frontend paths may expose internal or admin functionality. |
+| `https://api.target.com/v2/user?debug=true&env=staging` | 🔴 DROPPED | 🟢 KEPT | Non-overlapping parameters. Debug or staging parameters may reveal sensitive behavior and are still useful for fuzzing. |
+| `https://internal-service.target.com/v1/health` | 🔴 DROPPED | 🟢 KEPT | Multi-domain awareness. udud keeps separate hosts and microservices even if the URL structure looks repetitive. |
+| `https://target.com/v2/auth/session;jsessionid=abc123xyz` | 🔴 DROPPED | 🟢 KEPT | Matrix-parameter awareness. Session-related parameters are preserved because they may affect authentication or routing behavior. |
+| `https://api.target.com/v2/user?id=1` | 🟢 KEPT | 🔴 DROPPED | Smart parameter merging. If a richer parameter set already exists, udud removes smaller redundant variants to reduce duplicate fuzzing. |
+| `https://target.com/backup/v1/export.phps` | 🔴 DROPPED | 🟢 KEPT | Source disclosure protection. Sensitive extensions like `.phps` or backup files are preserved because they may leak source code. |
+| `https://target.com/assets/videos/promo_main.m4a` | 🟢 KEPT | 🔴 DROPPED | Smart noise filtering. Static media files are removed to keep recon results cleaner and more focused. |
 
 
 ## Installation
