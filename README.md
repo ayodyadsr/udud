@@ -24,7 +24,7 @@
 
 ---
 
-**udud** removes duplicate and useless URLs from recon and pentest results while still keeping important URLs that may contain vulnerabilities. Unlike many other tools, udud understands URL structure. It does not blindly delete similar URLs. Instead, it reduces noise while keeping endpoints that are still worth testing.
+**udud** removes duplicate and useless URLs from recon and pentest results while still keeping important URLs that may contain vulnerabilities.
 
 The goal is not to make the output as small as possible. The goal is to make the output cleaner without losing real attack surface.
 
