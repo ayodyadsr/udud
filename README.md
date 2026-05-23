@@ -24,7 +24,7 @@
 
 ---
 
-`udud` reads URLs from stdin and writes a deduplicated set to stdout. It
+**udud** reads URLs from stdin and writes a deduplicated set to stdout. It
 collapses URLs that hit the same endpoint (same path shape, same
 parameter set, with IDs, UUIDs, hashes and slugs treated as templated)
 down to the first one it saw. It does not delete the kinds of URLs a
