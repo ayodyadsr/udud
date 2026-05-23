@@ -31,21 +31,28 @@ dropping anything you would actually test.
 
 ## Features
 
-- Keeps object IDs separate by default, so URLs like
-  `/api/users/123` and `/api/users/456` are treated as different endpoints.
-- Query-aware deduplication:
-  subset query variants collapse safely without losing coverage.
-- Drops crawler junk, payload noise, malformed URLs, and static render assets
-  (images, fonts, audio/video) by default.
-- Documents and sensitive files (`.pdf`, `.zip`, `.sql`, `.bak`, etc.)
-  are never auto-dropped.
-- Single-pass and memory-efficient:
-  processes large URL lists with very low memory usage.
-- Structural folding only affects dedup signatures.
-  Output URLs are always real and untouched.
-- Optional aggressive mode (`-F`) for endpoint-focused collapsing.
-- Optional raw mode (`-x`) disables all cleaning/filtering.
-- Single portable C file with no runtime dependencies.
+- Keeps IDOR-style endpoints separate instead of collapsing them:
+  `/api/users/123`
+  `/api/users/222`
+  `/api/users/412/profile`
+- Keeps unique query-based attack surfaces:
+  `/product/123?is_prod=false`
+  `/product/222?is_debug=true`
+- Keeps different domains/scopes instead of merging them:
+  `example.com`
+  `example2.com`
+  `example3.com`
+- Keeps unique blog/content paths that may still expose attack surface:
+  `/blog/how-to-lick-your-own-toes`
+- Preserves endpoints with different structures:
+  `/profile`
+  `/settings`
+- Removes noisy static assets automatically:
+  `.jpg`
+  `.png`
+- Keeps meaningful query combinations instead of flattening everything:
+  `/home?qs=asd&secondQs=das`
+- Reduces noise without over-deduplicating important URLs.
 
 ## Installation
 
