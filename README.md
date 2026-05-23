@@ -54,15 +54,15 @@ The goal is not the smallest output possible. The goal is cleaner output without
 
 | Raw Input URL | Other Tools | udud (Default) | Why udud is Better? |
 |---|---|---|---|
-| `.../api/users/123` | 🟢 KEPT | 🟢 KEPT | Standard first-witness endpoint. |
-| `.../api/users/222` | 🔴 DROPPED | 🟢 KEPT | **Critical IDOR Target!** Standard tools blindly drop consecutive IDs, wiping out your chance to test for Broken Object Level Authentication. |
-| `.../blog/how-to-lick-your-own-toes` | 🔴 DROPPED | 🟢 KEPT | **Valid Attack Surface.** Content/CMS pages often contain comment forms, unique scripts, or DOM parameters worth fuzzing. |
-| `.../home?qs=asd&secondQs=das` | 🟢 KEPT | 🟢 KEPT | Target with a full parameter set. |
-| `.../home?qs=value` | 🔴 DROPPED | 🔴 DROPPED | Correctly dropped by both because `{qs}` is a perfect subset of `{qs, secondQs}`. No parameters are lost. |
-| `.../product/123?is_prod=false` | 🔴 DROPPED | 🟢 KEPT | **Hidden Param Danger.** Preserved because it contains debugging/environment flags that carry unique surface. |
-| `.../assets/background.jpg` | 🔴 DROPPED | 🔴 DROPPED | Cleaned by both. Pure render noise that holds no server-side vulnerability. |
-| `http://example2.com/product/2` | 🔴 DROPPED | 🟢 KEPT | **Multi-Domain Scope.** Standard tools often strip valid endpoints if they match a path pattern found on a different host. |
-| `.../blah/U-61723A/settings` | 🟢 KEPT | 🟢 KEPT | Static structure with unique session/org path tokens. |
+| `http://example.com/api/users/222` | 🔴 DROPPED | 🟢 KEPT | **Critical IDOR Target!** Kept as an IDOR candidate; should not be removed by standard deduplication tools. |
+| `http://example.com/api/users/412/profile` | 🔴 DROPPED | 🟢 KEPT | **Deep Nested IDOR.** Kept as an IDOR candidate; contains a distinct endpoint structure. |
+| `http://example.com/blog/how-to-lick-your-own-toes` | 🔴 DROPPED | 🟢 KEPT | **Valid Attack Surface.** Kept as a valid attack surface; standard tools often mistakenly strip this unique path. |
+| `http://example.com/product/123?is_prod=false` | 🔴 DROPPED | 🟢 KEPT | **Hidden Param Danger.** Kept as an IDOR candidate with unique debugging parameters. |
+| `http://example.com/product/222?is_debug=true` | 🔴 DROPPED | 🟢 KEPT | **Hidden Param Danger.** Kept as an IDOR candidate with unique debugging parameters. |
+| `http://example2.com/product/2` | 🔴 DROPPED | 🟢 KEPT | **Multi-Domain Scope.** Kept because this belongs to a completely different domain/scope. |
+| `http://example3.com/product/4` | 🔴 DROPPED | 🟢 KEPT | **Multi-Domain Scope.** Kept because this belongs to a completely different domain/scope. |
+| `http://example.com/page.php?id=1` | 🟢 KEPT | 🔴 DROPPED | **Smart Parameter Merging.** udud filters out subset parameters if a wider set exists (`id=3&page=2`), whereas standard tools keep the redundant lower-set request. |
+| `http://example.com/` | 🔴 DROPPED | 🟢 KEPT | **Root Normalization.** udud correctly normalizes and preserves the explicit root endpoint `/` instead of ignoring it during filtering. |
 
 
 ## Installation
