@@ -31,62 +31,23 @@ dropping anything you would actually test.
 
 ## Features
 
-- Non-destructive. Keeps `.js` and `.html` sources, source-disclosure
-  files (`.bak`, `.sql`, `.zip`, `.phps`), open-redirect / SSRF / LFI
-  parameters, and matrix-param auth endpoints like `;jsessionid=`.
-  Aggressive dedupers drop these.
-- Single-pass. One read of the stream, no cross-line rescans. The default
-  mode holds the kept lines until end of input so a path's query URL can be
-  dropped when a later one covers its keys (see below), so memory is the
-  unique signatures plus the kept output: about 30 MB on a 133 MB /
-  781k-line input, single digits on smaller inputs, reading at about
-  17 MB/s. The `-k` and `-x` modes stream one line out at a time at
-  roughly half that memory. Either way it stays far below urldedupe and
-  uro on the same input.
-- Object-ids preserved by default. UUIDs, hex digests, `stem-<id>` and
-  numeric object-ids are kept distinct, so every per-object reference
-  (each IDOR / broken-access target like `/api/users/123`) survives as
-  its own line. The one numeric exception: a number sitting under a
-  content/listing word (`/cat/9/details`, `/blog/124`, `/product/7`) is a
-  content-item index, not an access-control object, so it still folds.
-  Title slugs fold too. Query URLs of one path go further, but never
-  lossily: a query URL is dropped only when its key SET is a subset of
-  another query URL's on the same path, so the survivor loses no parameter
-  (`/home?qs=asd&secondQs=das` and `/home?qs=value` become just the two-key
-  one, because `{qs}` is contained in `{qs,secondQs}`). Two URLs with
-  different, non-overlapping keys both stay (`/product/N?is_prod=false` and
-  `/product/N?is_debug=true` are two lines: each carries surface the other
-  does not). A no-query URL of the same path is kept as its own separate
-  line. The result is exact dedup that stays structurally smart, not
-  `sort -u`. Pass `-F` to fold every id (the aggressive endpoint-discovery
-  mode: `/api/users/123` and `/222` collapse to one witness); pass `-k` to
-  keep every distinct query key-set as its own line instead of merging.
-- Opaque content-hash ids fold by default. A leaf like `TIP14995B514_P1`
-  (an uppercase label whose tail is a non-hex letter, then a hex run of 8+
-  chars carrying at least one `A-F`, then an optional `-`/`_` suffix) is a
-  content-ADDRESSED handle, not a guessable counter. Thousands of them hit
-  one render template, so they collapse to a single witness per template
-  (`label + # + suffix`), while a different label, suffix or parent segment
-  stays distinct. Enumerable ids are untouched: a pure-decimal id keeps no
-  hex letter so it is preserved (IDOR counters survive), a bare hex blob has
-  no label and is left to `-F`, and a dotted leaf is never folded. A corrupted
-  capture of one (`TIP14995B514_P1cIt`, where the scraper glued stray letters
-  onto the real `_P1` selector) is dropped as junk, since the clean line is
-  already present; `-x` keeps it raw.
-- Structural folding happens only inside the dedup signature. The line
-  printed is always a real URL, unmodified: the first-seen one for a
-  group, or the first-seen URL of the surviving (maximal) key-set when
-  subset query variants are merged.
-- Clean by default. No flags needed. Scanner junk, payload cache values,
-  mangled hosts and crawler spam are dropped without asking. Pass `-x`
-  if you want the raw stream with no cleaning.
-- Render-noise dropped by default. Images, fonts, stylesheets and static
-  media (mp4, mp3, m4p, m4v, m4a, aac, mov, webm, ... the full audio/video
-  set) are not endpoints, so they are filtered out. Documents and archives
-  (pdf, zip, sql, bak, ...) are NEVER auto-dropped, they can be findings.
-  Pass `-a` to keep every asset.
-- Single C file. No runtime, no config, nothing to install but the
-  binary.
+- Smart URL deduplication for recon, crawling, and pentesting.
+- Keeps important endpoints aggressive dedupers often drop:
+  .js, .html, backups, source-disclosure files, redirect/SSRF/LFI params,
+  and matrix-param auth paths like ;jsessionid=.
+- Preserves object IDs by default, so targets like
+  /api/users/123 and /api/users/456 stay separate.
+- Query-aware deduplication:
+  subset query variants collapse safely without losing coverage.
+- Drops crawler junk, payload noise, malformed URLs, and static render assets
+  (images, fonts, audio/video) by default.
+- Documents and sensitive files (.pdf, .zip, .sql, .bak, etc.)
+  are never auto-dropped.
+- Single-pass and memory-efficient: processes large URL lists with very low memory usage.
+- Structural folding only affects dedup signatures
+- Optional aggressive mode (-F) for endpoint-focused collapsing.
+- Optional raw mode (-x) disables all cleaning/filtering.
+- Single portable C file with no runtime dependencies.
 
 ## Installation
 
