@@ -311,4 +311,9 @@ streams one line at a time.
 
 ## License
 
-[Uro Source Available License (USAL) v1.0](LICENSE)
+This project is licensed under the **Uro Source Available License (USAL) v1.0**. 
+
+* **For Security Researchers & Individuals:** You are free to use, modify, and audit this tool for personal and internal business use.
+* **For Commercial Vendors & SaaS Providers:** If you plan to embed Uro into a commercial product, commercial scanner, or offer it as a managed cloud service, you **must** obtain a commercial license.
+
+See the full [LICENSE](LICENSE) file for details. For commercial licensing inquiries, please contact: `email@domainanda.com`.
