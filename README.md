@@ -50,7 +50,6 @@ The goal is not the smallest output possible. The goal is cleaner output without
   `/home?qs=asd&secondQs=das`
 - Removes noisy static assets automatically such as images, fonts,
   stylesheets, audio, video, source maps, and other non-endpoint files
-- Reduces noise without over-deduplicating important URLs.
 
 ## Installation
 
