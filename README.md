@@ -6,7 +6,6 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg"></a>
   <img src="https://img.shields.io/badge/language-C-00599C.svg">
   <img src="https://img.shields.io/badge/dependencies-none-success.svg">
   <img src="https://img.shields.io/badge/memory-18.6MB%20%2F%20781k%20URLs-success.svg">
