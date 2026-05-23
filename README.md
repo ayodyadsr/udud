@@ -30,7 +30,7 @@ The goal is not to make the output as small as possible. The goal is to make the
 
 ## Features
 
-| Raw Input URL | Other Tools (uro) | udud (Default) | Why udud is Better? |
+| Raw Input URL | Other Tools | udud (Default) | Why udud is Better? |
 |---|---|---|---|
 | `https://api.target.com/v2/tenant/100/billing` | 🔴 DROPPED | 🟢 KEPT | Critical BOLA / IDOR target. Many tools remove sequential IDs after seeing similar paths, which can hide cross-tenant authorization issues. |
 | `https://api.target.com/v2/tenant/100/billing/invoice/pdf` | 🔴 DROPPED | 🟢 KEPT | Deep nested API endpoint. udud preserves unique functionality deeper in the routing structure. |
