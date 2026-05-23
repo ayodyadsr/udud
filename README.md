@@ -2,7 +2,7 @@
 
 <p align="center">
   <b>URL Deduplicate Data</b><br>
-  Fast structural URL deduplication that preserves real attack surface.
+  Fast URL deduplication that preserves attack surface.
 </p>
 
 <p align="center">
