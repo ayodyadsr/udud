@@ -51,6 +51,16 @@ The goal is not the smallest output possible. The goal is cleaner output without
 - Removes noisy static assets automatically such as images, fonts,
   stylesheets, audio, video, source maps, and other non-endpoint files
 
+
+| Default | udud |
+|---|---|
+| http://example.com | http://example.com/ |
+| http://example.com/ | http://example.com/api/users/123 |
+| http://example.com/api/users/123 | http://example.com/api/users/222 |
+| http://example.com/api/users/222 | http://example.com/api/users/412/profile |
+| http://example.com/api/users/412/profile | http://example.com/blah/U-61351A/profile |
+| http://example.com/assets/background.jpg | http://example.com/blah/U-61723A/settings |
+
 ## Installation
 
 ```sh
