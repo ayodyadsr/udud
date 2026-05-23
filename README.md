@@ -31,12 +31,8 @@ dropping anything you would actually test.
 
 ## Features
 
-- Smart URL deduplication for recon, crawling, and pentesting.
-- Keeps important endpoints aggressive dedupers often drop:
-  `.js`, `.html`, backups, source-disclosure files, redirect/SSRF/LFI params,
-  and matrix-param auth paths like `;jsessionid=`.
-- Preserves object IDs by default, so targets like
-  `/api/users/123` and `/api/users/456` stay separate.
+- Keeps object IDs separate by default, so URLs like
+  `/api/users/123` and `/api/users/456` are treated as different endpoints.
 - Query-aware deduplication:
   subset query variants collapse safely without losing coverage.
 - Drops crawler junk, payload noise, malformed URLs, and static render assets
