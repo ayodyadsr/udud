@@ -56,7 +56,7 @@ The goal is not the smallest output possible. The goal is cleaner output without
 |---|---|---|---|
 | `http://example.com/api/users/222` | 🔴 DROPPED | 🟢 KEPT | **Critical IDOR Target!** Kept as an IDOR candidate; should not be removed by standard deduplication tools. |
 | `http://example.com/api/users/412/profile` | 🔴 DROPPED | 🟢 KEPT | **Deep Nested IDOR.** Kept as an IDOR candidate; contains a distinct endpoint structure. |
-| `http://example.com/blog/how-to-lick-your-own-toes` | 🔴 DROPPED | 🟢 KEPT | **Valid Attack Surface.** Kept as a valid attack surface; standard tools often mistakenly strip this unique path. |
+| `http://example.com/blog/how-we-built-our-auth-system` | 🔴 DROPPED | 🟢 KEPT | **Valid Attack Surface.** Kept as a valid attack surface; standard tools often mistakenly strip this unique path. |
 | `http://example.com/product/123?is_prod=false` | 🔴 DROPPED | 🟢 KEPT | **Hidden Param Danger.** Kept as an IDOR candidate with unique debugging parameters. |
 | `http://example.com/product/222?is_debug=true` | 🔴 DROPPED | 🟢 KEPT | **Hidden Param Danger.** Kept as an IDOR candidate with unique debugging parameters. |
 | `http://example2.com/product/2` | 🔴 DROPPED | 🟢 KEPT | **Multi-Domain Scope.** Kept because this belongs to a completely different domain/scope. |
