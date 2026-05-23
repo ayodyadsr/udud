@@ -61,17 +61,17 @@ The goal is not the smallest output possible. The goal is cleaner output without
 | `http://example.com/api/users/412/profile` | `http://example.com/blah/U-61351A/profile` |
 | `http://example.com/assets/background.jpg` | `http://example.com/blah/U-61723A/settings` |
 | `http://example.com/banner.jpg` | `http://example.com/blah/U-63352B/settings` |
-| `http://example.com/blah/U-61351A/profile`
-| `http://example.com/blah/U-61723A/settings`
-| `http://example.com/blah/U-61723A/settings`
-| `http://example.com/blah/U-63352B/settings`
-| `http://example.com/blah/U-64135C/profile`
-| `http://example.com/blog/how-to-lick-your-own-toes`
-| `http://example.com/blog/why-people-suck-a-study`
-| `http://example.com/cat/11/details.html`
-| `http://example.com/cat/9/details.html`
-| `http://example.com/home?qs=asd&secondQs=das`
-| `http://example.com/home?qs=newValue&secondQs=anotherValue`
+| `http://example.com/blah/U-61351A/profile` | `http://example.com/blah/U-64135C/profile`|
+| `http://example.com/blah/U-61723A/settings` | `http://example.com/blog/how-to-lick-your-own-toes`|
+| `http://example.com/blah/U-61723A/settings` | `http://example.com/cat/11/details.html`|
+| `http://example.com/blah/U-63352B/settings` | `http://example.com/home?qs=asd&secondQs=das`|
+| `http://example.com/blah/U-64135C/profile` | `http://example.com/page.php?id=3&page=2`
+| `http://example.com/blog/how-to-lick-your-own-toes` | `http://example.com/privacy-policy`|
+| `http://example.com/blog/why-people-suck-a-study` | `http://example.com/product/1`|
+| `http://example.com/cat/11/details.html` | `http://example.com/product/123?is_prod=false`|
+| `http://example.com/cat/9/details.html` | `http://example.com/product/222?is_debug=true` |
+| `http://example.com/home?qs=asd&secondQs=das` | `http://example2.com/product/2`|
+| `http://example.com/home?qs=newValue&secondQs=anotherValue` | `ttp://example3.com/product/4`|
 | `http://example.com/home?qs=secondValue`
 | `http://example.com/home?qs=value`
 | `http://example.com/page.php?id=1`
