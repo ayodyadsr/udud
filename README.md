@@ -51,18 +51,17 @@ The goal is not to make the output as small as possible. The goal is to make the
 - Removes noisy static assets automatically such as images, fonts,
   stylesheets, audio, video, source maps, and other non-endpoint files
 
-
-| Raw Input URL | Other Tools | udud (Default) | Why udud is Better? |
+| Raw Input URL | Other Tools (uro) | udud (Default) | Why udud is Better? |
 |---|---|---|---|
-| `http://example.com/api/users/222` | 🔴 DROPPED | 🟢 KEPT | **Critical IDOR Target!** Kept as an IDOR candidate; should not be removed by standard deduplication tools. |
-| `http://example.com/api/users/412/profile` | 🔴 DROPPED | 🟢 KEPT | **Deep Nested IDOR.** Kept as an IDOR candidate; contains a distinct endpoint structure. |
-| `http://example.com/blog/how-we-built-our-auth-system` | 🔴 DROPPED | 🟢 KEPT | **Valid Attack Surface.** Kept as a valid attack surface; standard tools often mistakenly strip this unique path. |
-| `http://example.com/product/123?is_prod=false` | 🔴 DROPPED | 🟢 KEPT | **Hidden Param Danger.** Kept as an IDOR candidate with unique debugging parameters. |
-| `http://example.com/product/222?is_debug=true` | 🔴 DROPPED | 🟢 KEPT | **Hidden Param Danger.** Kept as an IDOR candidate with unique debugging parameters. |
-| `http://example2.com/product/2` | 🔴 DROPPED | 🟢 KEPT | **Multi-Domain Scope.** Kept because this belongs to a completely different domain/scope. |
-| `http://example3.com/product/4` | 🔴 DROPPED | 🟢 KEPT | **Multi-Domain Scope.** Kept because this belongs to a completely different domain/scope. |
-| `http://example.com/page.php?id=1` | 🟢 KEPT | 🔴 DROPPED | **Smart Parameter Merging.** udud filters out subset parameters if a wider set exists (`id=3&page=2`), whereas standard tools keep the redundant lower-set request. |
-| `http://example.com/` | 🔴 DROPPED | 🟢 KEPT | **Root Normalization.** udud correctly normalizes and preserves the explicit root endpoint `/` instead of ignoring it during filtering. |
+| `https://api.target.com/v2/tenant/99/billing` | 🟢 KEPT | 🟢 KEPT | Standard first-witness multi-tenant API endpoint. |
+| `https://api.target.com/v2/tenant/100/billing` | 🔴 DROPPED | 🟢 KEPT | Critical BOLA / IDOR target. Many tools blindly remove sequential IDs and can accidentally hide cross-tenant authorization issues. |
+| `https://api.target.com/v2/tenant/100/billing/invoice/pdf` | 🔴 DROPPED | 🟢 KEPT | Deep nested API endpoint. udud keeps unique functionality hidden deeper in the routing structure. |
+| `https://target.com/dashboard/settings/v1/alpha-feature` | 🔴 DROPPED | 🟢 KEPT | Hidden attack surface. Feature-flag or experimental paths may expose admin or internal functionality. |
+| `https://api.target.com/v2/user?id=1&role=admin` | 🟢 KEPT | 🟢 KEPT | Baseline request with a unique parameter set. |
+| `https://api.target.com/v2/user?id=1` | 🔴 DROPPED | 🔴 DROPPED | Correctly removed because `{id}` is fully covered by `{id, role}`. No parameter surface is lost. |
+| `https://api.target.com/v2/user?debug=true&env=staging` | 🔴 DROPPED | 🟢 KEPT | Hidden debug or staging parameters can expose sensitive behavior and are still valuable for testing. |
+| `https://internal-service.target.com/v1/health` | 🔴 DROPPED | 🟢 KEPT | Multi-domain awareness. udud keeps separate hosts and microservices even if the paths look similar. |
+| `https://target.com/assets/videos/promo_main.m4a` | 🟢 KEPT | 🔴 DROPPED | Smart noise filtering. Static media files are removed to keep recon output cleaner and more useful. |
 
 
 ## Installation
