@@ -52,42 +52,17 @@ The goal is not the smallest output possible. The goal is cleaner output without
   stylesheets, audio, video, source maps, and other non-endpoint files
 
 
-| Default | udud |
-|---|---|
-| `http://example.com` | `http://example.com/` |
-| `http://example.com/` | `http://example.com/api/users/123` |
-| `http://example.com/api/users/123` | `http://example.com/api/users/222` |
-| `http://example.com/api/users/222` | `http://example.com/api/users/412/profile` |
-| `http://example.com/api/users/412/profile` | `http://example.com/blah/U-61351A/profile` |
-| `http://example.com/assets/background.jpg` | `http://example.com/blah/U-61723A/settings` |
-| `http://example.com/banner.jpg` | `http://example.com/blah/U-63352B/settings` |
-| `http://example.com/blah/U-61351A/profile` | `http://example.com/blah/U-64135C/profile`|
-| `http://example.com/blah/U-61723A/settings` | `http://example.com/blog/how-to-lick-your-own-toes`|
-| `http://example.com/blah/U-61723A/settings` | `http://example.com/cat/11/details.html`|
-| `http://example.com/blah/U-63352B/settings` | `http://example.com/home?qs=asd&secondQs=das`|
-| `http://example.com/blah/U-64135C/profile` | `http://example.com/page.php?id=3&page=2`
-| `http://example.com/blog/how-to-lick-your-own-toes` | `http://example.com/privacy-policy`|
-| `http://example.com/blog/why-people-suck-a-study` | `http://example.com/product/1`|
-| `http://example.com/cat/11/details.html` | `http://example.com/product/123?is_prod=false`|
-| `http://example.com/cat/9/details.html` | `http://example.com/product/222?is_debug=true` |
-| `http://example.com/home?qs=asd&secondQs=das` | `http://example2.com/product/2`|
-| `http://example.com/home?qs=newValue&secondQs=anotherValue` | `ttp://example3.com/product/4`|
-| `http://example.com/home?qs=secondValue`
-| `http://example.com/home?qs=value`
-| `http://example.com/page.php?id=1`
-| `http://example.com/page.php?id=2`
-| `http://example.com/page.php?id=3&page=2`
-| `http://example.com/privacy-policy`
-| `http://example.com/product/1`
-| `http://example.com/product/123`
-| `http://example.com/product/123?is_prod=false`
-| `http://example.com/product/222?is_debug=true`
-| `http://example.com/product/456`
-| `http://example.com/users/photos/myPhoto.jpg`
-| `http://example.com/users/photos/photo.jpg`
-| `http://example.com/users/photos/photo.png`
-| `http://example2.com/product/2`
-| `http://example3.com/product/4`
+| Raw Input URL | Other Tools | udud (Default) | Why udud is Better? |
+|---|---|---|---|
+| `.../api/users/123` | 🟢 KEPT | 🟢 KEPT | Standard first-witness endpoint. |
+| `.../api/users/222` | 🔴 DROPPED | 🟢 KEPT | **Critical IDOR Target!** Standard tools blindly drop consecutive IDs, wiping out your chance to test for Broken Object Level Authentication. |
+| `.../blog/how-to-lick-your-own-toes` | 🔴 DROPPED | 🟢 KEPT | **Valid Attack Surface.** Content/CMS pages often contain comment forms, unique scripts, or DOM parameters worth fuzzing. |
+| `.../home?qs=asd&secondQs=das` | 🟢 KEPT | 🟢 KEPT | Target with a full parameter set. |
+| `.../home?qs=value` | 🔴 DROPPED | 🔴 DROPPED | Correctly dropped by both because `{qs}` is a perfect subset of `{qs, secondQs}`. No parameters are lost. |
+| `.../product/123?is_prod=false` | 🔴 DROPPED | 🟢 KEPT | **Hidden Param Danger.** Preserved because it contains debugging/environment flags that carry unique surface. |
+| `.../assets/background.jpg` | 🔴 DROPPED | 🔴 DROPPED | Cleaned by both. Pure render noise that holds no server-side vulnerability. |
+| `http://example2.com/product/2` | 🔴 DROPPED | 🟢 KEPT | **Multi-Domain Scope.** Standard tools often strip valid endpoints if they match a path pattern found on a different host. |
+| `.../blah/U-61723A/settings` | 🟢 KEPT | 🟢 KEPT | Static structure with unique session/org path tokens. |
 
 
 ## Installation
