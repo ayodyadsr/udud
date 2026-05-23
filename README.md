@@ -39,7 +39,7 @@ The goal is not to make the output as small as possible. The goal is to make the
 | `https://internal-service.target.com/v1/health` | 🔴 DROPPED | 🟢 KEPT | Multi-domain awareness. udud keeps separate hosts and microservices even if the URL structure looks repetitive. |
 | `https://target.com/v2/auth/session;jsessionid=abc123xyz` | 🔴 DROPPED | 🟢 KEPT | Matrix-parameter awareness. Session-related parameters are preserved because they may affect authentication or routing behavior. |
 | `https://api.target.com/v2/user?id=1` | 🟢 KEPT | 🔴 DROPPED | Smart parameter merging. If a richer parameter set already exists, udud removes smaller redundant variants to reduce duplicate fuzzing. |
-| `https://internal-service.target.com/v1/health` | 🔴 DROPPED | 🟢 KEPT | Multi-domain awareness. udud keeps separate hosts and microservices even if the paths look similar. |
+| `https://target.com/backup/v1/export.phps` | 🔴 DROPPED | 🟢 KEPT | Source disclosure protection. Sensitive extensions like `.phps` or backup files are preserved because they may leak source code. |
 | `https://target.com/assets/videos/promo_main.m4a` | 🟢 KEPT | 🔴 DROPPED | Smart noise filtering. Static media files are removed to keep recon results cleaner and more focused. |
 
 
