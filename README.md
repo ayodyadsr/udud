@@ -24,7 +24,7 @@
 
 ---
 
-**udud** cleans and removes duplicate URLs from recon and pentest results, while keeping important endpoints that are still worth testing. Unlike other tools, udud understands URL structure. It can detect when multiple URLs are actually the same endpoint by recognizing patterns like IDs, UUIDs, hashes, and slugs. Instead of blindly removing duplicates, udud reduces noise while keeping URLs that may still be important for testing.
+**udud** cleans and removes duplicate URLs from recon and pentest results, while keeping important endpoints that are still worth testing. Unlike other tools, udud understands URL structure. Instead of blindly removing duplicates, udud reduces noise while keeping URLs that may still be important for testing.
 
 The goal is not the smallest output possible. The goal is cleaner output without losing real attack surface.
 
