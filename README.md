@@ -54,15 +54,15 @@ The goal is not the smallest output possible. The goal is cleaner output without
 
 | Default | udud |
 |---|---|
-| http://example.com | http://example.com/ |
-| http://example.com/ | http://example.com/api/users/123 |
-| http://example.com/api/users/123 | http://example.com/api/users/222 |
-| http://example.com/api/users/222 | http://example.com/api/users/412/profile |
-| http://example.com/api/users/412/profile | http://example.com/blah/U-61351A/profile |
-| http://example.com/assets/background.jpg | http://example.com/blah/U-61723A/settings |
-| http://example.com/banner.jpg | http://example.com/blah/U-63352B/settings |
-| http://example.com/blah/U-61351A/profile | http://example.com/blah/U-64135C/profile |
-| http://example.com/blah/U-61723A/settings | http://example.com/blog/how-to-lick-your-own-toes |
+| `http://example.com` | `http://example.com/` |
+| `http://example.com/` | `http://example.com/api/users/123` |
+| `http://example.com/api/users/123` | `http://example.com/api/users/222` |
+| `http://example.com/api/users/222` | `http://example.com/api/users/412/profile` |
+| `http://example.com/api/users/412/profile` | `http://example.com/blah/U-61351A/profile` |
+| `http://example.com/assets/background.jpg` | `http://example.com/blah/U-61723A/settings` |
+| `http://example.com/banner.jpg` | `http://example.com/blah/U-63352B/settings` |
+| `http://example.com/blah/U-61351A/profile` | `http://example.com/blah/U-64135C/profile` |
+| `http://example.com/blah/U-61723A/settings` | `http://example.com/blog/how-to-lick-your-own-toes` |
 
 
 ## Installation
