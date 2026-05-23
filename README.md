@@ -311,4 +311,4 @@ streams one line at a time.
 
 ## License
 
-[GNU Affero General Public License v3.0](LICENSE)
+[Uro Source Available License (USAL) v1.0](LICENSE)
