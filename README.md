@@ -42,7 +42,7 @@ The goal is not the smallest output possible. The goal is cleaner output without
   `example2.com`
   `example3.com`
 - Keeps unique blog/content paths that may still expose attack surface:
-  `/blog/how-to-lick-your-own-toes`
+  `/blog/how-we-built-our-auth-system`
 - Preserves endpoints with different structures:
   `/profile`
   `/settings`
