@@ -24,9 +24,20 @@
 
 ---
 
-**udud** removes duplicate and useless URLs from recon and pentest results while still keeping important URLs that may contain vulnerabilities. Unlike many other tools, udud understands URL structure.
+**udud** udud is a streaming-first URL deduplication tool written in C, focused on preserving real attack surface while maintaining extremely high throughput and low runtime overhead.
 
 The goal is not to make the output as small as possible. The goal is to make the output cleaner without losing real attack surface.
+
+Benchmarks on D_example_wb.full:
+
+- 1.6x faster than urldedupe
+- 6.6x faster than uro
+- 27.7x faster than urless
+- 7000x+ faster than uddup
+
+while using:
+- ~9.5x less RAM than urldedupe
+- ~7.7x less RAM than uddup
 
 ## Features
 
