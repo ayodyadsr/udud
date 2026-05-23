@@ -33,20 +33,22 @@ dropping anything you would actually test.
 
 - Smart URL deduplication for recon, crawling, and pentesting.
 - Keeps important endpoints aggressive dedupers often drop:
-  .js, .html, backups, source-disclosure files, redirect/SSRF/LFI params,
-  and matrix-param auth paths like ;jsessionid=.
+  `.js`, `.html`, backups, source-disclosure files, redirect/SSRF/LFI params,
+  and matrix-param auth paths like `;jsessionid=`.
 - Preserves object IDs by default, so targets like
-  /api/users/123 and /api/users/456 stay separate.
+  `/api/users/123` and `/api/users/456` stay separate.
 - Query-aware deduplication:
   subset query variants collapse safely without losing coverage.
 - Drops crawler junk, payload noise, malformed URLs, and static render assets
   (images, fonts, audio/video) by default.
-- Documents and sensitive files (.pdf, .zip, .sql, .bak, etc.)
+- Documents and sensitive files (`.pdf`, `.zip`, `.sql`, `.bak`, etc.)
   are never auto-dropped.
-- Single-pass and memory-efficient: processes large URL lists with very low memory usage.
-- Structural folding only affects dedup signatures
-- Optional aggressive mode (-F) for endpoint-focused collapsing.
-- Optional raw mode (-x) disables all cleaning/filtering.
+- Single-pass and memory-efficient:
+  processes large URL lists with very low memory usage.
+- Structural folding only affects dedup signatures.
+  Output URLs are always real and untouched.
+- Optional aggressive mode (`-F`) for endpoint-focused collapsing.
+- Optional raw mode (`-x`) disables all cleaning/filtering.
 - Single portable C file with no runtime dependencies.
 
 ## Installation
