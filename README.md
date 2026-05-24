@@ -317,4 +317,4 @@ We welcome contributions! However, please note that by submitting a Pull Request
 
 This project is licensed under the **Udud Source Available License (USAL) v1.0**.
 
-For detailed terms, please read the full [LICENSE](USAL) file. 
+For detailed terms, please read the full [LICENSE](LICENSE) file. 
