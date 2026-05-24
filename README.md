@@ -313,18 +313,8 @@ streams one line at a time.
 
 We welcome contributions! However, please note that by submitting a Pull Request to this project, you agree that your contributions will be licensed under the project's **Udud Source Available License (USAL) v1.0**, and you grant the maintainers the right to dual-license these contributions under commercial terms without further compensation.
 
-## License & Fair Use
+## License
 
 This project is licensed under the **Udud Source Available License (USAL) v1.0**.
 
-* **Free & Open Source for the Community:** You are free to download, use, modify, audit, and redistribute Udud for personal, and educational.
-* **Restrictions on Proprietary Integration:** You may **not** integrate, bundle, link, or embed Udud (or any derivative works) into a proprietary software product, commercial security scanner, or hardware appliance distributed to third parties, unless you obtain a dedicated commercial license.
-* **SaaS/Cloud Restriction:** You may not offer the functionality of Udud as a managed service (SaaS) to third parties without open-sourcing your entire cloud management infrastructure under this same license.
-
 For detailed terms, please read the full [LICENSE](USAL) file. 
-
----
-
-## Commercial Licensing & OEM Redistribution
-
-If your organization cannot comply with the USAL restrictions, particularly if you want to build proprietary software based on Udud or distribute it commercially, we provide the [LICENSE](UCOL) file. 
