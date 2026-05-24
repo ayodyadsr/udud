@@ -327,14 +327,4 @@ For detailed terms, please read the full [LICENSE](LICENSE) file.
 
 ## Commercial Licensing & OEM Redistribution
 
-If your organization cannot comply with the UPSL restrictions—specifically if you wish to build proprietary software upon Udud or distribute it commercially. Ee offer the **Udud Commercial & OEM License (UCOL)**.
-
-### Commercial & OEM Benefits:
-- **Silent & Passive Embedding:** Explicit permission to embed Udud deep within your proprietary commercial scanners, endpoint agents, or hardware appliances without exposing our license terms or copyright notices to your end-users.
-- **Full White-Labeling Rights:** Modify Udud’s CLI output, banners, and execution behaviors to seamlessly integrate it under your own company's branding and user interface.
-- **SaaS & MSSP Full Exemption:** Run Udud-as-a-Service on multi-tenant cloud platforms or use it to deliver Managed Security Services (MSSP) without any legal obligation to open-source your infrastructure automation, control panels, or proprietary orchestration code.
-- **Perpetual & Royalty-Free Shipping:** Ship unlimited copies of your product containing Udud under a simple term-based or flat-rate license fee, avoiding complicated per-seat or per-scan royalty tracking.
-- **Enterprise-Grade Feed & Support:** Access to stable production-ready code branches, early access to critical security patches before they hit the public repo, and direct engineer-to-engineer technical support.
-
-To discuss commercial terms, enterprise pricing models, or to request a standard OEM licensing contract, please contact us directly at:
-commercial@ayodyadsr.com
+If your organization cannot comply with the UPSL restrictions, particularly if you want to build proprietary software based on Udud or distribute it commercially, we provide the **Udud Commercial & OEM License (UCOL)**.
