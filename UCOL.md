@@ -109,8 +109,8 @@ These restrictions apply regardless of whether the software has been modified.
 
 For organizations with:
 
-- fewer than 25 employees,
-- under USD $2 million annual revenue.
+- fewer than 5 employees,
+- under USD $100,000 annual revenue.
 
 ### Includes
 
