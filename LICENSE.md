@@ -44,7 +44,7 @@ Any use, modification, or redistribution of the Software outside of the scope ex
 
 Organizations that cannot comply with the open-source redistribution requirements of Section 2, or companies that wish to engage in the restricted commercial activities outlined in Section 3, must purchase a dedicated commercial contract. 
 
-Commercial license tiers, pricing, and agreements are managed under the **Udud Commercial & OEM License (UCOL)** program. For more details, please review the [UCOL Document](UCOL)
+Commercial license tiers, pricing, and agreements are managed under the **Udud Commercial & OEM License (UCOL)** program. For more details, please review the [UCOL Document](UCOL.md)
 
 ---
 
