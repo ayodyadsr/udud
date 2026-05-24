@@ -313,26 +313,28 @@ streams one line at a time.
 
 We welcome contributions! However, please note that by submitting a Pull Request to this project, you agree that your contributions will be licensed under the project's **Uro Source Available License (USAL) v1.0**, and you grant the maintainers the right to dual-license these contributions under commercial terms without further compensation.
 
-## 📄 License
+## License & Fair Use
 
-This project is licensed under the **Uro Source Available License (USAL) v1.0**. 
+This project is licensed under the **Udud Public Source License (UPSL) v1.0**.
 
-* 🔬 **For Security Researchers & Individuals:** You are completely free to use, modify, and audit Uro for personal, educational, or internal business security assessments.
-* 🏢 **For Commercial Vendors & SaaS Providers:** If you plan to embed Uro into a commercial software product, proprietary scanners, hardware appliances, or offer it as a managed cloud service, you **must** obtain a commercial license.
+* **Free & Open Source for the Community:** You are free to download, use, modify, audit, and redistribute Udud for personal, educational, and internal business security auditing.
+* **Restrictions on Proprietary Integration:** You may **not** integrate, bundle, link, or embed Udud (or any derivative works) into a proprietary software product, commercial security scanner, or hardware appliance distributed to third parties, unless you obtain a dedicated commercial license.
+* **SaaS/Cloud Restriction:** You may not offer the functionality of Udud as a managed service (SaaS) to third parties without open-sourcing your entire cloud management infrastructure under this same license.
 
-See the full [LICENSE](LICENSE) file for details. For commercial inquiries, contact: `contact@ayodyadsr.com`.
+For detailed terms, please read the full [LICENSE](LICENSE) file. 
 
 ---
 
-## Commercial Licensing & OEM Support
+## Commercial Licensing & OEM Redistribution
 
-If your organization wants to bypass the restrictions of the USAL v1.0 license, we offer the **Uro Commercial & OEM License (UCOL)**. This model is specifically tailored for commercial vendors, network security hardware providers, and enterprise SaaS platforms.
+If your organization cannot comply with the UPSL restrictions—specifically if you wish to build proprietary software upon Udud or distribute it commercially—we offer the **Udud Commercial & OEM License (UCOL)**.
 
 ### Commercial & OEM Benefits:
-- **Silent Embedding:** Explicit permission to integrate and bundle Uro into your proprietary commercial scanners or closed-source products without exposing our license terms to your customers.
-- **White-Labeling Rights:** Modify the output and integrate Uro smoothly under your own product's branding and user interface.
-- **Cloud & SaaS Full Exemption:** Full bypass of the USAL "Remote Service Provisions" (SSPL clause). Run Uro-as-a-Service on your multi-tenant cloud platforms without any obligation to open-source your infrastructure automation or management code.
-- **Enterprise-Grade Stability:** Access to stable, production-ready release branches, priority security patches, and direct developer-to-developer support lines.
+- **Silent & Passive Embedding:** Explicit permission to embed Udud deep within your proprietary commercial scanners, endpoint agents, or hardware appliances without exposing our license terms or copyright notices to your end-users.
+- **Full White-Labeling Rights:** Modify Udud’s CLI output, banners, and execution behaviors to seamlessly integrate it under your own company's branding and user interface.
+- **SaaS & MSSP Full Exemption:** Run Udud-as-a-Service on multi-tenant cloud platforms or use it to deliver Managed Security Services (MSSP) without any legal obligation to open-source your infrastructure automation, control panels, or proprietary orchestration code.
+- **Perpetual & Royalty-Free Shipping:** Ship unlimited copies of your product containing Udud under a simple term-based or flat-rate license fee, avoiding complicated per-seat or per-scan royalty tracking.
+- **Enterprise-Grade Feed & Support:** Access to stable production-ready code branches, early access to critical security patches before they hit the public repo, and direct engineer-to-engineer technical support.
 
-To discuss enterprise pricing structures, OEM royalty-free volume licensing, or to request a custom contract, please reach out to our team at:
-📧 **commercial@ayodyadsr.com**
+To discuss commercial terms, enterprise pricing models, or to request a standard OEM licensing contract, please contact us directly at:
+commercial@ayodyadsr.com
