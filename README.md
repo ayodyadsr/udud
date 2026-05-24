@@ -309,10 +309,6 @@ signatures plus, in the default mode, the kept output lines held until
 end of input; under `-k` / `-x` there is no survivor buffer and output
 streams one line at a time.
 
-# Contributing to Udud
-
-We welcome contributions! However, please note that by submitting a Pull Request to this project, you agree that your contributions will be licensed under the project's **Udud Source Available License (USAL) v1.0**, and you grant the maintainers the right to dual-license these contributions under commercial terms without further compensation.
-
 ## License
 
 This project is licensed under the **Udud Source Available License (USAL) v1.0**.
