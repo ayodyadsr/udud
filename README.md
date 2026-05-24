@@ -313,11 +313,26 @@ streams one line at a time.
 
 We welcome contributions! However, please note that by submitting a Pull Request to this project, you agree that your contributions will be licensed under the project's **Uro Source Available License (USAL) v1.0**, and you grant the maintainers the right to dual-license these contributions under commercial terms without further compensation.
 
-## License
+## 📄 License
 
 This project is licensed under the **Uro Source Available License (USAL) v1.0**. 
 
-* **For Security Researchers & Individuals:** You are free to use, modify, and audit this tool for personal and internal business use.
-* **For Commercial Vendors & SaaS Providers:** If you plan to embed Uro into a commercial product, commercial scanner, or offer it as a managed cloud service, you **must** obtain a commercial license.
+* 🔬 **For Security Researchers & Individuals:** You are completely free to use, modify, and audit Uro for personal, educational, or internal business security assessments.
+* 🏢 **For Commercial Vendors & SaaS Providers:** If you plan to embed Uro into a commercial software product, proprietary scanners, hardware appliances, or offer it as a managed cloud service, you **must** obtain a commercial license.
 
-See the full [LICENSE](LICENSE) file for details. For commercial licensing inquiries, please contact: `contact@ayodyadsr.com`.
+See the full [LICENSE](LICENSE) file for details. For commercial inquiries, contact: `contact@ayodyadsr.com`.
+
+---
+
+## 💼 Commercial Licensing & OEM Support
+
+If your organization wants to bypass the restrictions of the USAL v1.0 license, we offer the **Uro Commercial & OEM License (UCOL)**. This model is specifically tailored for commercial vendors, network security hardware providers, and enterprise SaaS platforms.
+
+### 🚀 Commercial & OEM Benefits:
+- **Silent Embedding:** Explicit permission to integrate and bundle Uro into your proprietary commercial scanners or closed-source products without exposing our license terms to your customers.
+- **White-Labeling Rights:** Modify the output and integrate Uro smoothly under your own product's branding and user interface.
+- **Cloud & SaaS Full Exemption:** Full bypass of the USAL "Remote Service Provisions" (SSPL clause). Run Uro-as-a-Service on your multi-tenant cloud platforms without any obligation to open-source your infrastructure automation or management code.
+- **Enterprise-Grade Stability:** Access to stable, production-ready release branches, priority security patches, and direct developer-to-developer support lines.
+
+To discuss enterprise pricing structures, OEM royalty-free volume licensing, or to request a custom contract, please reach out to our team at:
+📧 **commercial@ayodyadsr.com**
