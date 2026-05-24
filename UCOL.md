@@ -1,222 +1,225 @@
 # Udud Commercial & OEM License (UCOL) v1.0
 
-Copyright (c) 2026 Ayodya Dewangga Sasotya Rahmadita. All rights reserved.
+Udud is a high-performance URL normalization and structural deduplication engine designed for reconnaissance workflows, attack-surface reduction, and large-scale security data processing. It is continuously developed to help security researchers and organizations reduce duplicate noise while preserving meaningful attack surface data.
 
-## Overview
+Udud is free for end users, researchers, educators, and internal organizational use. However, the free Udud license does not allow redistribution of Udud within proprietary software products, commercial SaaS platforms, managed security services, or hardware appliances.
 
-Udud is a high-performance URL normalization and structural deduplication engine designed for reconnaissance workflows, attack-surface reduction, and large-scale security data processing.
-
-The public Udud license permits:
-
-- personal use,
-- educational use,
-- security research,
-- bug bounty activities,
-- consulting engagements,
-- internal organizational usage.
-
-However, the public license does NOT permit:
-
-- commercial redistribution,
-- SaaS deployment,
-- proprietary embedding,
-- managed-service offerings,
-- resale of modified variants.
-
-Organizations requiring these rights must obtain a separate commercial agreement under the **Udud Commercial & OEM License (UCOL)**.
+To support long-term development of the project, commercial redistribution rights are provided through the **Udud Commercial & OEM License (UCOL)** program.
 
 ---
 
-# Commercial Rights Granted
+# Top Udud OEM Redistribution License Features
 
-A valid UCOL agreement grants the right to:
+## Redistribution Rights
 
-- redistribute Udud within commercial products,
-- embed Udud into proprietary software,
-- integrate Udud into SaaS or managed security platforms,
-- bundle Udud with commercial hardware or appliances,
-- deploy Udud within customer-facing hosted environments.
+The free Udud license does not allow redistribution or embedding of Udud within proprietary products or commercial hosted platforms.
 
-The exact scope of redistribution rights depends on the purchased license tier and contract terms.
+A Udud OEM License grants the right to redistribute Udud:
 
----
+- within a specific product line,
+- across multiple products,
+- or throughout an entire company portfolio,
 
-# Included Commercial Benefits
-
-## Stable Release Access
-
-Commercial customers receive access to stable production-oriented release branches intended for operational reliability and long-term deployment support.
+depending on the purchased license agreement.
 
 ---
 
-## Commercial Technical Support
+## OEM Builds
 
-Active commercial agreements include direct technical support for:
+OEM customers may receive specialized production-oriented builds designed for commercial deployment environments.
 
-- deployment issues,
-- integration problems,
-- operational regressions,
-- compatibility concerns,
-- upgrade assistance.
+Depending on the agreement, these builds may include:
 
-Support availability and response targets depend on the purchased support tier.
+- minimal runtime packages,
+- non-interactive installation support,
+- deployment-oriented configurations,
+- reduced package footprint,
+- OEM identification branding.
 
 ---
 
-## Integration Flexibility
+## Commercial Support
 
-Organizations may integrate Udud through:
+Udud OEM maintenance plans include commercial technical support to ensure:
+
+- integration issues are resolved promptly,
+- deployment problems are addressed efficiently,
+- compatibility regressions are investigated,
+- technical questions receive direct assistance.
+
+---
+
+## Regular Updates
+
+Maintenance plans include update rights, ensuring access to:
+
+- new releases,
+- performance improvements,
+- compatibility fixes,
+- operational enhancements,
+- new engine capabilities.
+
+---
+
+## Continuity
+
+Udud OEM customers receive contractual commercial usage rights independent from future changes to the public license.
+
+Commercial licensing revenue directly supports continued development and maintenance of the Udud project.
+
+---
+
+# Intended Usage
+
+The Udud OEM program is intended for organizations wishing to:
+
+- redistribute Udud within commercial software,
+- embed Udud into proprietary products,
+- integrate Udud into SaaS platforms,
+- deploy Udud within managed security services,
+- bundle Udud within hardware or virtual appliances.
+
+Organizations using Udud only internally generally do not require an OEM license.
+
+---
+
+# Integration Approach
+
+The recommended integration approach is to install Udud within the target environment and invoke it programmatically when required.
+
+Typical integration methods include:
 
 - CLI execution,
-- structured JSON/text outputs,
-- internal orchestration pipelines,
-- custom wrapper applications,
-- source-level integration where explicitly permitted.
+- JSON output parsing,
+- text output processing,
+- orchestration pipeline integration,
+- wrapper applications,
+- source-level integration where permitted.
 
 ---
 
-## Optional Custom Engineering
+# License Prices & Terms
 
-Enterprise agreements may additionally include:
+To keep licensing straightforward, standard Udud OEM licenses do not include per-seat royalties or per-scan fees.
 
-- custom output formats,
-- performance optimization,
-- platform-specific builds,
-- workflow-specific integrations,
-- long-term maintenance branches.
+Licenses are generally offered under two structures:
 
-Custom engineering services are negotiated separately from standard licensing fees.
+- Perpetual License
+- Quarterly Term License
 
----
+Perpetual licenses involve a one-time commercial redistribution fee with optional maintenance renewals.
 
-# License Restrictions
+Quarterly licenses include redistribution rights, updates, and support for the duration of the active subscription term.
 
-Without an active commercial agreement, organizations may NOT:
-
-- redistribute Udud commercially,
-- offer Udud as a paid hosted service,
-- embed Udud into proprietary software,
-- resell modified versions,
-- create commercial derivative services primarily based on Udud.
-
-These restrictions apply regardless of whether the software has been modified.
+Pricing is based on overall company size rather than individual teams or departments.
 
 ---
 
-# License Tiers
+## Udud OEM Enterprise Redistribution License
 
-## Startup License
+Designed for large organizations and enterprise-scale vendors.
 
-For organizations with:
+### Perpetual License
 
-- fewer than 5 employees,
-- under USD $100,000 annual revenue.
+- USD $39,980 one-time fee
 
-### Includes
+### Optional Annual Maintenance
 
-- commercial redistribution rights,
-- internal commercial deployment,
-- standard technical support.
+- USD $9,980/year
 
-### Pricing
+### Quarterly Term License
 
-- Starting at USD $1,500/year
+- USD $5,980 every 3 months
 
 ---
 
-## Business License
+## Udud OEM Mid-Sized Company Redistribution License
 
-For:
+Designed for mid-sized organizations.
 
-- SaaS providers,
-- security vendors,
-- managed security platforms,
-- commercial scanning products.
+### Qualification
 
-### Includes
+- 500 or fewer employees
+- Less than USD $50 million annual revenue
 
-- embedding rights,
-- hosted-service rights,
-- priority technical support,
-- stable release access.
+### Perpetual License
 
-### Pricing
+- USD $19,980 one-time fee
 
-- Starting at USD $7,500/year
+### Optional Annual Maintenance
 
----
+- USD $4,980/year
 
-## Enterprise / OEM License
+### Quarterly Term License
 
-For:
-
-- enterprise security vendors,
-- OEM appliance manufacturers,
-- large-scale managed security providers,
-- commercial security platforms.
-
-### Includes
-
-- broad redistribution rights,
-- dedicated support channels,
-- optional SLA agreements,
-- optional custom engineering services,
-- long-term support arrangements.
-
-### Pricing
-
-- Custom pricing based on deployment scope and organization size.
+- USD $2,980 every 3 months
 
 ---
 
-# Evaluation
+## Udud OEM Small / Startup Redistribution License
 
-Organizations may internally evaluate the public version of Udud prior to purchasing a commercial license.
+Designed for startups and small companies.
 
-Commercial evaluation agreements and temporary trial licenses are available upon request.
+### Qualification
+
+- 50 or fewer employees
+- Less than USD $5 million annual revenue
+
+### Perpetual License
+
+- USD $4,980 one-time fee
+
+### Optional Annual Maintenance
+
+- USD $1,480/year
+
+### Quarterly Term License
+
+- USD $980 every 3 months
 
 ---
 
-# Procurement
+# Evaluation & Refund Policy
 
-For commercial licensing inquiries, contact:
+Perpetual licenses include a 90-day evaluation period.
+
+If Udud OEM does not meet operational requirements during this period, customers may terminate the agreement and request a full refund.
+
+Quarterly licenses may be canceled during the first 14 days of the initial term for a full refund.
+
+Organizations may also evaluate the standard public version of Udud before purchase.
+
+---
+
+# Purchasing Process
+
+To purchase a Udud OEM License, contact:
 
 **commercial@ayodyadsr.com**
 
 Please include:
 
-1. Organization name
+1. Company name
 2. Intended deployment model
-3. Product or service category
-4. Estimated integration scope
-5. Preferred license tier
+3. Product or platform category
+4. Preferred license type
+5. Estimated integration scope
 
----
+Once approved, customers will receive:
 
-# Trademark Notice
-
-"Udud" and related branding are trademarks of Ayodya Dewangga Sasotya Rahmadita.
-
-Use of the Udud name, logo, or branding in derivative commercial products requires explicit written permission.
+- commercial license credentials,
+- OEM package access,
+- maintenance entitlement information,
+- support contact details.
 
 ---
 
 # Warranty Disclaimer
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
 
 ---
 
 # Limitation of Liability
 
 IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE OF THIS SOFTWARE.
-
----
-
-# Contact
-
-Commercial Licensing:
-commercial@ayodyadsr.com
-
-General Inquiries:
-contact@ayodyadsr.com
