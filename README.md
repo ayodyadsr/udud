@@ -327,4 +327,4 @@ For detailed terms, please read the full [LICENSE](USAL) file.
 
 ## Commercial Licensing & OEM Redistribution
 
-If your organization cannot comply with the UPSL restrictions, particularly if you want to build proprietary software based on Udud or distribute it commercially, we provide the **Udud Commercial & OEM License (UCOL)**(UCOL).
+If your organization cannot comply with the UPSL restrictions, particularly if you want to build proprietary software based on Udud or distribute it commercially, we provide the [LICENSE](UCOL) file. 
