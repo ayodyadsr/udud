@@ -327,7 +327,7 @@ For detailed terms, please read the full [LICENSE](LICENSE) file.
 
 ## Commercial Licensing & OEM Redistribution
 
-If your organization cannot comply with the UPSL restrictions—specifically if you wish to build proprietary software upon Udud or distribute it commercially—we offer the **Udud Commercial & OEM License (UCOL)**.
+If your organization cannot comply with the UPSL restrictions—specifically if you wish to build proprietary software upon Udud or distribute it commercially. Ee offer the **Udud Commercial & OEM License (UCOL)**.
 
 ### Commercial & OEM Benefits:
 - **Silent & Passive Embedding:** Explicit permission to embed Udud deep within your proprietary commercial scanners, endpoint agents, or hardware appliances without exposing our license terms or copyright notices to your end-users.
