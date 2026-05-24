@@ -2,7 +2,7 @@
 
 **Copyright (c) 2026 Ayodya Dewangga Sasotya Rahmadita**
 
-This License Agreement governs your use, modification, and redistribution of the Udud Security Scanner software and all associated source code, documentation, and data files (collectively, the "Software").
+This License Agreement governs your use, modification, and redistribution of the Udud and all associated source code, documentation, and data files (collectively, the "Software").
 
 By downloading, installing, copying, or using the Software, you accept and agree to be legally bound by all terms and conditions contained within this License Agreement. If you do not agree to these terms, you do not have permission to use the Software.
 
