@@ -324,11 +324,11 @@ See the full [LICENSE](LICENSE) file for details. For commercial inquiries, cont
 
 ---
 
-## 💼 Commercial Licensing & OEM Support
+## Commercial Licensing & OEM Support
 
 If your organization wants to bypass the restrictions of the USAL v1.0 license, we offer the **Uro Commercial & OEM License (UCOL)**. This model is specifically tailored for commercial vendors, network security hardware providers, and enterprise SaaS platforms.
 
-### 🚀 Commercial & OEM Benefits:
+### Commercial & OEM Benefits:
 - **Silent Embedding:** Explicit permission to integrate and bundle Uro into your proprietary commercial scanners or closed-source products without exposing our license terms to your customers.
 - **White-Labeling Rights:** Modify the output and integrate Uro smoothly under your own product's branding and user interface.
 - **Cloud & SaaS Full Exemption:** Full bypass of the USAL "Remote Service Provisions" (SSPL clause). Run Uro-as-a-Service on your multi-tenant cloud platforms without any obligation to open-source your infrastructure automation or management code.
