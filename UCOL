@@ -1,112 +1,222 @@
 # Udud Commercial & OEM License (UCOL) v1.0
 
-The Udud Security Scanner is an advanced security orchestration framework and network auditing tool designed to analyze business logic vulnerabilities, system state transitions, and access control mechanics. Developed and maintained by Ayodya DSR, Udud provides deep diagnostic capabilities for complex modern environments.
+Copyright (c) 2026 Ayodya Dewangga Sasotya Rahmadita. All rights reserved.
 
-Udud is free for individual end-users and independent security researchers. However, the standard public Udud Public Source License (UPSL) does not allow the redistribution or embedding of Udud within proprietary software products, commercial security scanners, or hardware appliances distributed to third parties. 
+## Overview
 
-For organizations that want to embed Udud within their commercial products or deliver managed services without open-source restrictions, we offer the **Udud Commercial & OEM License (UCOL)**. This program provides the legal rights, custom software builds, and technical backing necessary for commercial distribution.
+Udud is a high-performance URL normalization and structural deduplication engine designed for reconnaissance workflows, attack-surface reduction, and large-scale security data processing.
 
----
+The public Udud license permits:
 
-## Top Udud OEM Redistribution License Features
+- personal use,
+- educational use,
+- security research,
+- bug bounty activities,
+- consulting engagements,
+- internal organizational usage.
 
-### Redistribution Rights
-While the free public license restricts commercial deployment and bundling, a UCOL agreement grants your company the right to distribute unlimited copies of Udud. This coverage can apply to a specific product line or across your company's entire software and hardware portfolio.
+However, the public license does NOT permit:
 
-### Custom OEM Edition Builds
-We provide specialized OEM builds custom-tailored for automated and stealth deployment. These builds feature a native silent installer, allowing seamless background installation alongside your primary application. The OEM build strips out unnecessary interactive development components, reducing the installer size by more than half, and identifies itself internally as "Udud OEM" so enterprise clients know it is an officially licensed component.
+- commercial redistribution,
+- SaaS deployment,
+- proprietary embedding,
+- managed-service offerings,
+- resale of modified variants.
 
-### Commercial Technical Support
-All active UCOL maintenance plans include direct commercial support. This ensures that any technical anomalies, bugs, or integration issues your team encounters are reviewed and resolved promptly by the core developers.
-
-### Continuous Updates and Security Patches
-Software environments change rapidly. UCOL maintenance plans include full update rights, granting your team immediate access to stable, production-ready release branches. You will receive critical security patches and performance optimizations before they are published to the public open-source repository.
-
-### Contractual Continuity
-Public license terms and open-source restrictions can change over time. A UCOL agreement provides a binding contract that guarantees the availability, licensing terms, and operational parameters of your Udud usage. Furthermore, licensing revenue directly funds the ongoing development and engineering of the core Udud engine.
-
----
-
-## Technical Integration and Core Features
-
-Udud OEM licenses grant full access to the underlying scanning and orchestration capabilities of the engine. Key operational components include:
-
-* **State Transition Analysis:** Map and test system behaviors against state paradoxes and logic flaws.
-* **Access Control Auditing:** Automate the discovery of broken object-level authorization and privilege escalation paths.
-* **Business Logic Testing:** Execute complex multi-step transaction checks that automated vulnerability scanners typically miss.
-
-### Recommended Integration Approach
-Our recommended integration method is to deploy Udud OEM on the host system using the background silent installation feature. Your primary application can then execute Udud programmatically when a scan is required, requesting structured XML or JSON formatted outputs. Your software can easily parse these structured files using standard parsers. The license also allows other integration methods, including direct parsing of standard console output, reading internal data files, or compiling Udud source code directly into your application.
+Organizations requiring these rights must obtain a separate commercial agreement under the **Udud Commercial & OEM License (UCOL)**.
 
 ---
 
-## License Tiers, Pricing, & Terms
+# Commercial Rights Granted
 
-To keep corporate procurement simple, our standard commercial license involves **no per-seat or per-scan royalties**. You can distribute and install as many copies of Udud OEM as you wish within your covered products for no additional fees. 
+A valid UCOL agreement grants the right to:
 
-We offer two straightforward payment structures: a **Perpetual License** (a one-time buyout fee combined with an optional annual maintenance fee) and a **Quarterly Term License** (a fixed fee paid every three months for as long as you sell or distribute products containing Udud).
+- redistribute Udud within commercial products,
+- embed Udud into proprietary software,
+- integrate Udud into SaaS or managed security platforms,
+- bundle Udud with commercial hardware or appliances,
+- deploy Udud within customer-facing hosted environments.
 
-Pricing is based on the total size of the purchasing organization, not just the size of an isolated development team. This reflects the greater scale and value larger enterprises derive from the technology. Prices are locked at the time of purchase and will not increase as your company grows later.
-
-### 1. Enterprise Redistribution License
-This tier is designed for our largest corporate clients and covers a named product line or product category.
-* **Perpetual License:** $119,980 one-time fee
-* **Annual Maintenance Fee:** $29,980 per year (optional after the first year)
-* **Quarterly Term License:** $17,980 every 3 months (includes ongoing maintenance)
-
-### 2. Mid-Sized Company Redistribution License
-This tier provides a discounted flat rate for mid-sized organizations. It covers all products across the entire company portfolio.
-* **Perpetual License:** $89,980 one-time fee
-* **Annual Maintenance Fee:** $22,980 per year (optional after the first year)
-* **Quarterly Term License:** $13,980 every 3 months (includes ongoing maintenance)
-* **Qualifications:** The purchasing company must have 500 or fewer employees, annual revenue under US$200 million, and a market capitalization under $1 billion if publicly traded.
-
-### 3. Small Company & Startup Redistribution License
-This tier offers our lowest rates to support early-stage companies and small businesses. It covers all products across the company portfolio.
-* **Perpetual License:** $59,980 one-time fee
-* **Annual Maintenance Fee:** $17,980 per year (optional after the first year)
-* **Quarterly Term License:** $9,980 every 3 months (includes ongoing maintenance)
-* **Qualifications:** The company must have 50 or fewer employees and an annual revenue under US$10 million. Subsidiaries of larger corporations only qualify if the parent company also meets these criteria.
+The exact scope of redistribution rights depends on the purchased license tier and contract terms.
 
 ---
 
-## Risk-Free Trial and Evaluation Period
+# Included Commercial Benefits
 
-We stand behind the stability of our software. All perpetual OEM licenses include a **six-month trial period**. Within the first six months from delivery, you may cancel the contract for any reason and receive a full 100% refund of all monies paid, including license and maintenance fees. 
+## Stable Release Access
 
-The quarterly term license requires only a three-month commitment and can be terminated for a full refund within the first 30 days of the initial quarter. 
-
-For pre-purchase functionality testing, organizations are welcome to download and evaluate the standard public version of Udud internally. While the public version lacks the automated silent installer and commercial deployment rights, the core analytical mechanisms are identical.
+Commercial customers receive access to stable production-oriented release branches intended for operational reliability and long-term deployment support.
 
 ---
 
-## The Purchase Process
+## Commercial Technical Support
 
-We use a direct procurement process to ensure all contracts are tailored correctly to your legal and technical requirements. To initiate a purchase, you or your corporate software reseller should send an email to **commercial@ayodyadsr.com** containing the following information:
+Active commercial agreements include direct technical support for:
 
-1. **Company Name:** The legal name of the entity that will hold the license. If you are a reseller, please specify the end-user company name.
-2. **License Tier:** Specify whether you qualify for the Enterprise, Mid-Sized, or Small/Startup tier based on the criteria above.
-3. **Product Scope:** For Enterprise tier inquiries, please provide the name or category of the product line that will integrate Udud.
-4. **License Type:** State whether your organization prefers a Perpetual License or a Quarterly Term License.
-5. **Maintenance Duration:** For perpetual licenses, indicate whether you prefer one year of maintenance, five years of prepaid maintenance (which includes a 20% prepayment discount), or no maintenance feed at all.
+- deployment issues,
+- integration problems,
+- operational regressions,
+- compatibility concerns,
+- upgrade assistance.
 
-### Finalizing the Contract
-Once we receive your details, our team will provide a formal quotation and a draft contract agreement (available as a standard PDF or editable Microsoft Word document for legal review). Payment can be completed via wire transfer, ACH direct deposit, or corporate check. 
-
-As soon as the contract is signed and executed, we will activate your commercial account and issue your secure download credentials along with your direct technical support contact channels.
+Support availability and response targets depend on the purchased support tier.
 
 ---
 
-## Frequently Asked Questions (FAQ)
+## Integration Flexibility
 
-#### Is the maintenance fee optional?
-For a perpetual license, maintenance is optional after purchase but highly recommended. Because Udud is under active development, a maintenance subscription ensures you always have access to new engine capabilities and performance improvements. If you choose the quarterly term license, maintenance and support are completely integrated into the single quarterly fee.
+Organizations may integrate Udud through:
 
-#### Do you sell through third-party software resellers?
-Yes. We regularly coordinate with corporate software resellers worldwide. Have your preferred procurement partner contact our sales email with your project requirements to initiate the corporate onboarding process.
+- CLI execution,
+- structured JSON/text outputs,
+- internal orchestration pipelines,
+- custom wrapper applications,
+- source-level integration where explicitly permitted.
 
-#### What if our company grows into a higher tier later?
-Your pricing structure is locked at the moment of contract execution. If your employee count or annual revenue increases later, your annual renewal and quarterly term rates remain exactly the same as long as your license remains active.
+---
 
-#### Our engineering team is small, but our parent company is an international enterprise. Do we qualify for the startup rate?
-No. License tiers are calculated based on the total size of the entire global corporate entity. Larger organizations possess significantly larger market infrastructure to leverage value from the software, and they generally require higher compliance, legal review, and support overhead on our side.
+## Optional Custom Engineering
+
+Enterprise agreements may additionally include:
+
+- custom output formats,
+- performance optimization,
+- platform-specific builds,
+- workflow-specific integrations,
+- long-term maintenance branches.
+
+Custom engineering services are negotiated separately from standard licensing fees.
+
+---
+
+# License Restrictions
+
+Without an active commercial agreement, organizations may NOT:
+
+- redistribute Udud commercially,
+- offer Udud as a paid hosted service,
+- embed Udud into proprietary software,
+- resell modified versions,
+- create commercial derivative services primarily based on Udud.
+
+These restrictions apply regardless of whether the software has been modified.
+
+---
+
+# License Tiers
+
+## Startup License
+
+For organizations with:
+
+- fewer than 25 employees,
+- under USD $2 million annual revenue.
+
+### Includes
+
+- commercial redistribution rights,
+- internal commercial deployment,
+- standard technical support.
+
+### Pricing
+
+- Starting at USD $1,500/year
+
+---
+
+## Business License
+
+For:
+
+- SaaS providers,
+- security vendors,
+- managed security platforms,
+- commercial scanning products.
+
+### Includes
+
+- embedding rights,
+- hosted-service rights,
+- priority technical support,
+- stable release access.
+
+### Pricing
+
+- Starting at USD $7,500/year
+
+---
+
+## Enterprise / OEM License
+
+For:
+
+- enterprise security vendors,
+- OEM appliance manufacturers,
+- large-scale managed security providers,
+- commercial security platforms.
+
+### Includes
+
+- broad redistribution rights,
+- dedicated support channels,
+- optional SLA agreements,
+- optional custom engineering services,
+- long-term support arrangements.
+
+### Pricing
+
+- Custom pricing based on deployment scope and organization size.
+
+---
+
+# Evaluation
+
+Organizations may internally evaluate the public version of Udud prior to purchasing a commercial license.
+
+Commercial evaluation agreements and temporary trial licenses are available upon request.
+
+---
+
+# Procurement
+
+For commercial licensing inquiries, contact:
+
+**commercial@ayodyadsr.com**
+
+Please include:
+
+1. Organization name
+2. Intended deployment model
+3. Product or service category
+4. Estimated integration scope
+5. Preferred license tier
+
+---
+
+# Trademark Notice
+
+"Udud" and related branding are trademarks of Ayodya DSR.
+
+Use of the Udud name, logo, or branding in derivative commercial products requires explicit written permission.
+
+---
+
+# Warranty Disclaimer
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+---
+
+# Limitation of Liability
+
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE OF THIS SOFTWARE.
+
+---
+
+# Contact
+
+Commercial Licensing:
+commercial@ayodyadsr.com
+
+General Inquiries:
+contact@ayodyadsr.com
