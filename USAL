@@ -1,30 +1,28 @@
-# Udud Source Available License (USAL)
-Version 1.0, May 2026
+Udud Source Available License (USAL) v1.0
 
-Copyright (c) 2026 Ayodya Dewangga Sasotya Rahmadita. All rights reserved.
+Copyright (c) 2026 YOUR_NAME
 
-TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+This software is free for:
+- personal use,
+- research,
+- education,
+- bug bounty,
+- internal security assessment,
+- consulting engagements.
 
-### 1. DEFINITIONS
-"Licensor" shall mean the copyright owner or entity authorized by the copyright owner that is granting the License.
-"Software" shall mean the Udud software, including source code, documentation, and binary forms made available under this License.
-"Service" shall mean providing the functionality of the Software to third parties as a service, including but not limited to Software-as-a-Service (SaaS), Infrastructure-as-a-Service (IaaS), or Managed Security Services.
-"Proprietary Product" shall mean any software or hardware product distributed to third parties for a fee or as part of a commercial offering.
+You may modify and redistribute this software provided that:
+- source code remains available,
+- attribution is preserved,
+- modifications are documented.
 
-### 2. GRANT OF LICENSE & PERMITTED USES
-Subject to the terms and conditions of this License, Licensor grants You a worldwide, non-exclusive, no-charge, royalty-free copyright license to:
-* **a)** Use, copy, and modify the Software for personal, internal business, educational, or security research purposes.
-* **b)** Distribute unmodified copies of the Software, provided that this License and all copyright notices remain intact.
+You may NOT:
+- offer this software as a commercial hosted service,
+- embed it in commercial products,
+- resell modified variants,
+- create competing commercial services based primarily on this software,
 
-### 3. RESTRICTIONS & COMMERCIAL LIMITATIONS
-You may not integrate, bundle, link, or embed the Software (or any derivative works thereof) into a Proprietary Product, commercial security scanner, or any software distributed to third parties under a non-open license, WITHOUT obtaining a separate commercial license from the Licensor. 
+without a separate commercial license.
 
-### 4. REMOTE SERVICE PROVISIONS
-If you make the functionality of the Software or modified versions available to third parties as a Service, you must make the Service Source Code available via network download to everyone for free, under the terms of this License. 
-"Service Source Code" means the source code for the Software AND the source code for all programs, automation scripts, management software, user interfaces, application program interfaces (APIs), and monitoring tools that a user would need to run an instance of the Service themselves.
+Commercial licenses are available at UCOL
 
-### 5. TERMINATION & PATENT SAFETY
-This License terminates automatically if you fail to comply with any of its conditions, or if you initiate patent litigation against Licensor alleging that the Software infringes your patent(s).
-
-### 6. DISCLAIMER OF WARRANTY
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY.
+THE SOFTWARE IS PROVIDED "AS IS".
