@@ -1,4 +1,19 @@
-/* udud v21 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
+/* udud v22 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
+ *
+ * v22.0: stop dropping source maps. "map" was on the render-noise asset list
+ *      (NOISE_EXT), so the default render-noise filter folded away every .map
+ *      URL. A source map (app.js.map, main.css.map) is the opposite of render
+ *      noise: it discloses the original unminified source, internal routes and
+ *      often secrets, and is a standing recon finding, exactly the "documents
+ *      can be findings" rule the NOISE_EXT comment already states. Fix: drop
+ *      "map" from NOISE_EXT only. "map" stays in SX (a .map is a real static
+ *      file: keep it, its ?query is scanner noise) and in KX (known real ext).
+ *      Output change vs v21 is a strict SUPERSET: .map URLs are now kept, no
+ *      other line moves (verified on gau / wayback / vulnweb x all flags: the
+ *      only diff is .map lines, 0 collateral; 781k corpus keeps +25 maps). This
+ *      intentionally breaks the -k/-x byte-identical-across-versions invariant
+ *      for .map lines (keep-bias wins over exactness here, like v20's bare-fold
+ *      did for default). RAM/throughput unchanged (one fewer static string).
  *
  * v21.0: memory overhaul of the default (deferred-emit) path, output BYTE-
  *      IDENTICAL to v20 on every flag and corpus. Peak RSS on a 1.1M-line
@@ -789,12 +804,15 @@ static int is_uuid(const char*s,size_t n){ if(n!=36)return 0;
     for(size_t i=0;i<36;i++){ if(i==8||i==13||i==18||i==23){if(s[i]!='-')return 0;}
         else if(!isxdigit((unsigned char)s[i]))return 0;} return 1; }
 /* render-noise ONLY: css/img/font/media. Archives & documents (pdf zip
- * doc xls sql bak swf ...) are NEVER auto-dropped - they can be findings. */
+ * doc xls sql bak swf ...) are NEVER auto-dropped - they can be findings.
+ * NOT here on purpose: "map" (source maps disclose original source / routes /
+ * secrets, a finding - v22). A .map is still a real static file, so it stays
+ * in SX/KX: kept, with its ?query treated as scanner noise. */
 static const char*NOISE_EXT[]={"css","png","jpg","jpeg","gif","svg","ico","bmp",
  "webp","tif","tiff","woff","woff2","ttf","eot","otf","mp4","mp3","avi","mov",
  "webm","wav","ogg","m4a","m4p","m4b","m4v","aac","wma","aiff","aif","opus",
  "mid","midi","oga","ogv","weba","amr","caf","ac3","mpg","mpeg","m2v","wmv",
- "f4v","f4a","3gp","3g2","vob","asf","flac","mkv","map",0};
+ "f4v","f4a","3gp","3g2","vob","asf","flac","mkv",0};
 static int is_noise(const char*p,size_t n){
     size_t i=n; while(i&&p[i-1]!='.'&&p[i-1]!='/')i--;
     if(!i||p[i-1]!='.')return 0; size_t el=n-i; if(!el||el>=12)return 0;
