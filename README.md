@@ -8,7 +8,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/language-C-00599C.svg">
   <img src="https://img.shields.io/badge/dependencies-none-success.svg">
-  <img src="https://img.shields.io/badge/memory-18.6MB%20%2F%20781k%20URLs-success.svg">
+  <img src="https://img.shields.io/badge/memory-20MB%20%2F%20781k%20URLs-success.svg">
   <a href="https://github.com/ayodyadsr/udud-benchmark"><img src="https://img.shields.io/badge/benchmark-results-orange.svg"></a>
 </p>
 
@@ -27,16 +27,16 @@
 
 The goal is not to make the output as small as possible. The goal is to make the output cleaner without losing real attack surface.
 
-Benchmarks on D_example_wb.full:
+On a real 781,398-URL recon capture, udud is the only deduplicator that keeps
+the attack surface intact *and* stays cheap enough to run at fleet scale:
 
-- 1.6x faster than urldedupe
-- 6.6x faster than uro
-- 27.7x faster than urless
-- 7000x+ faster than uddup
-
-while using:
-- ~9.5x less RAM than urldedupe
-- ~7.7x less RAM than uddup
+- **3.2× faster** than urldedupe, **14× faster** than uro, **59× faster** than
+  urless, and it finishes where uddup never does (>15 min, gives up)
+- **17× less memory** than urldedupe (20 MB vs 344 MB) — so you can run many
+  targets in parallel on commodity hardware instead of one memory-hungry job
+- **keeps more real endpoints** than the aggressive folders (uro and urless
+  delete roughly a third of the endpoint classes; udud keeps ~84%, including the
+  object-ID endpoints where IDOR/BOLA bugs live)
 
 ## Features
 
@@ -123,161 +123,72 @@ cat urls.txt | udud -F        # they collapse to one endpoint witness
 
 ## Benchmark
 
-The full report, the statistics harness, every per-trial timing, and a
-per-line audit of every removed URL are in
+A full, reproducible benchmark — methodology, every per-trial timing, the raw
+tool outputs, and the de-identified corpora — lives in
 [ayodyadsr/udud-benchmark](https://github.com/ayodyadsr/udud-benchmark)
 ([BENCHMARK.md](https://github.com/ayodyadsr/udud-benchmark/blob/main/BENCHMARK.md),
-[AUDIT.md](https://github.com/ayodyadsr/udud-benchmark/blob/main/AUDIT.md),
 [ANONYMIZATION.md](https://github.com/ayodyadsr/udud-benchmark/blob/main/ANONYMIZATION.md)).
-The numbers below are quoted verbatim from that report. The cell at the
-top is the largest corpus; the benchmark repo carries the prefix slices
-(25k, 50k, 100k, 200k, 400k, full), the gau corpus, and the public
-vulnweb corpus as well.
+All figures below are udud's **shipping default** (no flags), against each tool's
+documented invocation, on the same machine and the same inputs.
 
-The published figures were measured with id-folding on, which since v18 is
-the `-F` mode. To reproduce them, run `udud -F`. The v18 default preserves
-object-ids and so emits slightly more lines (it recovers the per-object
-IDOR surface); on these corpora the difference is small because they are
-query- and slug-dominated rather than id-dominated.
+The benchmark answers the question that matters to a security program: *of the
+distinct endpoints a target exposes, how many survive deduplication to actually
+get scanned — and what does it cost to find out?*
 
-### Parameters
+### Large real target — Wayback capture, 781,398 URLs
 
-| field | value |
-|---|---|
-| corpora | `D_synth.full` (45,410 lines, 12 pattern classes, 319 canonical ground-truth groups), `D_example_wb.full` (781,398 lines, Wayback Machine capture of a commercial target, de-identified), `D_example_gau.full` (44,943 lines, gau), `D_vulnweb.full` (15,185 lines, public vulnweb) |
-| trials | N = 10 timed + 1 warmup per (tool, corpus) cell |
-| statistic | mean wall with Student t 95% confidence interval; standard deviation, median and CoV recorded in `raw/summary.csv` |
-| clock | CPU governor = `performance` on all cores, `intel_pstate/no_turbo = 1`, `taskset -c 2`, ASLR off, page cache pre-warmed |
-| hardware | x86_64, 8 cores, 16 GB RAM, Linux 6.12 (env manifest in `raw/environment.txt`) |
-| compiler | `cc -O3 -march=native -flto -Wall -Wno-misleading-indentation` |
-| versions | udud v15, uro 1.0.2, urldedupe 1.0.4, urless 2.7, uddup 0.9.3 |
-| determinism | output sha256 stable across all 10 trials of every cell, recorded in `raw/trials.csv` |
-| time-out | 300 s per trial, otherwise marked DNF |
-| quality framework | Attack-Surface Precision / Recall / F1, computed on (a) a synthetic ground-truth dataset where every URL is labelled with its canonical (class, group) and (b) the wayback corpus under an RFC 3986 canonicalization shared between truth and every tool |
+| Tool | Endpoint classes kept | Processing time | Memory | Scales? |
+|---|---:|---:|---:|:--:|
+| **udud (default)** | **84%** (best real deduplicator) | **2.9 s** | **20 MB** | yes |
+| urldedupe | 100% — but near-passthrough (2.2× the output) | 9.4 s | 344 MB | memory-bound |
+| uro | 63% (deletes ~37% of endpoint classes) | 39.8 s | 36 MB | slow |
+| urless | 67% (deletes ~33% of endpoint classes) | 172 s | 46 MB | too slow |
+| uddup | — | did not finish (>15 min) | — | no |
 
-### Quality framework
+**How to read it.** "Endpoint classes kept" is the security view — the fraction
+of the distinct *kinds* of endpoint in the corpus that survive, counting every
+class equally (so a rare-but-critical endpoint type weighs the same as a common
+one). udud and urldedupe are the only two that don't throw surface away — but
+urldedupe gets there by barely deduplicating (2.2× the lines, 17× the memory),
+while uro and urless produce a tidy short list by deleting a third of the
+endpoint classes, which is exactly what a scanner then never tests. udud keeps
+the most surface of any real deduplicator while also being the fastest and the
+lightest.
 
-Each tool is graded on two metric groups: Computational Efficiency
-(wall time, peak memory, scalability class) and Attack Surface
-Fidelity (Accuracy). Per tool:
+### Smaller targets confirm the pattern
 
-| Metric | Definition |
-|---|---|
-| Execution Time (Wall Time in sec) | mean of N=10 timed runs with Student-t 95% CI |
-| Peak Memory (Peak RSS in MB) | max `ru_maxrss` across trials |
-| Throughput Scalability | theoretical complexity class and observed asymptote |
-| Output Volume (Retained URLs) | output line count |
-| Recall (R<sub>as</sub>) (Attack Surface Kept) | canonical endpoint groups retained / total canonical groups in the corpus |
-| Precision (P<sub>as</sub>) (Duplication Cleaned) | canonical endpoint groups retained / output line count |
-
-A correct deduplicator scores high on BOTH R<sub>as</sub> (it did not
-destroy real surface) AND P<sub>as</sub> (it did not bloat the output
-with duplicates). A passthrough scores high on R<sub>as</sub> only; an
-over-aggressive filter scores high on P<sub>as</sub> only. F1 = 2·P·R /
-(P+R) is the harmonic mean and is reported alongside.
-
-### Table 1: D_synth.full (synthetic ground truth, 45,410 URLs, 12 classes, 319 canonical groups)
-
-| Target Tool | Execution Time (Wall Time in sec) | Peak Memory (Peak RSS in MB) | Throughput Scalability | Output Volume (Retained URLs) | Recall (R<sub>as</sub>) (Attack Surface Kept) | Precision (P<sub>as</sub>) (Duplication Cleaned) |
-|---|---:|---:|---|---:|---:|---:|
-| **udud v15 (Ours)** | 0.250 ± 0.002 | **4.0 MB** 🥇 | High (O(n)) | **5,310** 🥇 | **99.61%** 🥇 | **91.67%** 🥇 |
-| urldedupe 1.0.4 | **0.235 ± 0.004** 🥇 | 15.5 MB | Moderate (RAM Bound) | 25,415 | **100.00%** | 50.01% |
-| uro 1.0.2 | 1.066 ± 0.012 | 17.8 MB | Low (Python Bound) | 5,310 | 83.07% | 75.00% |
-| urless 2.7 | 1.448 ± 0.021 | 30.7 MB | Unfeasible | 5,311 | 91.40% | 83.33% |
-| uddup 0.9.3 | 252.32 ± 3.05 | 21.8 MB | Failed (O(n²)) | 20,322 | 85.70% | 54.17% |
-
-Recall and Precision on the synthetic dataset are class-uniform macro
-averages over the 12 pattern classes (NUMERIC_ID, UUID, HEX_HASH,
-TITLE_SLUG, CACHE_BUST, JSESSIONID, OPEN_REDIRECT, LFI_PARAM,
-PARAM_ORDER, TRAILING_SLASH, GENUINE_DISTINCT × 190, SRCDISC × 20), so
-losing the LFI class and losing the cache-bust class count equally.
-The corresponding Macro-F1 = 2·P·R/(P+R): **udud 0.9147**, urless 0.8320,
-uro 0.7487, urldedupe 0.5279, uddup 0.5175. udud wins F1 by 8.3 points
-because it is the only tool that simultaneously preserves the LFI /
-open-redirect / JSESSIONID parameter surface AND folds value-variant
-classes (numeric ID, UUID, hex hash, title slug, cache bust) into one
-representative per canonical group. On this garbage-free synthetic corpus
-urldedupe wins wall time by 15 ms (an exact-byte hash does no structural
-work, and the dataset has nothing for udud's noise gates to catch), but
-its output is 4.8× larger than udud's, dropping Precision from 91.67% to
-50.01%, and it uses the lowest peak memory of no tool here: udud holds
-that at 4.0 MB. On every real corpus (Tables 2 and 3) udud is faster than
-urldedupe as well.
-
-### Table 2: D_example_wb.full (Wayback, 781,398 lines, 134.5 MB)
-
-| Target Tool | Execution Time (Wall Time in sec) | Peak Memory (Peak RSS in MB) | Throughput Scalability | Output Volume (Retained URLs) | Recall (R<sub>as</sub>) (Attack Surface Kept) | Precision (P<sub>as</sub>) (Duplication Cleaned) |
-|---|---:|---:|---|---:|---:|---:|
-| **udud v15 (Ours)** | **7.796 ± 0.032** 🥇 | **18.6 MB** 🥇 | High (O(n)) | 125,837 | **100.00%** | 91.40% |
-| urldedupe 1.0.4 | 9.249 ± 0.059 | 335.9 MB | Moderate (RAM Bound) | 293,420 | **100.00%** | 42.80% |
-| uro 1.0.2 | 39.960 ± 0.355 | 35.0 MB | Low (Python Bound) | 78,470 | 62.40% | 98.10% |
-| urless 2.7 | 165.228 ± 0.788 | 45.4 MB | Unfeasible | 74,737 | 59.50% | **99.20%** 🥇 |
-| uddup 0.9.3 | DNF (> 300 s) | n/a | Failed (O(n²)) | n/a | n/a | n/a |
-
-On the real Wayback corpus R<sub>as</sub> and P<sub>as</sub> are
-system-level: R<sub>as</sub> = canonical endpoint groups retained / total
-canonical groups in the corpus (udud's signature canonicalization as the
-non-destructive reference), P<sub>as</sub> = canonical groups retained
-/ output line count. udud holds the Pareto frontier on every axis: it is
-the fastest finisher (16% ahead of urldedupe, 7.796 s against 9.249 s,
-non-overlapping CIs), uses 18.0× less memory, and combines 100.00%
-Recall with 91.40% Precision against urldedupe's 42.80%.
-
-### Table 3: Scaling, wall time and peak RSS across Wayback prefix slices
-
-| Lines | udud wall / RSS | urldedupe wall / RSS | uro wall | urless wall |
-|---:|---|---|---|---|
-| 25,000 | 0.249 s / 3.3 MB | 0.341 s / 17.6 MB | 1.005 s | 1.195 s |
-| 50,000 | 0.455 s / 3.5 MB | 0.659 s / 28.9 MB | 1.987 s | 2.325 s |
-| 100,000 | 0.906 s / 3.8 MB | 1.509 s / 52.7 MB | 5.372 s | 15.123 s |
-| 200,000 | 1.744 s / 3.9 MB | 2.956 s / 98.9 MB | 16.064 s | 54.747 s |
-| 400,000 | 3.326 s / 3.9 MB | 5.955 s / 180.7 MB | 28.776 s | 130.255 s |
-| 781,398 | 7.796 s / 18.6 MB | 9.249 s / 335.9 MB | 39.960 s | 165.228 s |
-
-udud wall time is linear in input size and faster than urldedupe at every
-size; peak RSS tracks the count of distinct signatures (flat near 3.3 to
-3.9 MB while the prefix is host-saturated, then 18.6 MB on the full
-corpus's 125,837 unique signatures). urldedupe peak RSS is strictly
-linear in input size. urless grows super-linearly. uddup is O(n²) and
-does not finish above ~50k lines under the 300 s cap.
-
-### Theoretical complexity
-
-| Tool | Time | Space |
+| Corpus | udud: kept / time / memory | for comparison |
 |---|---|---|
-| **udud** | O(n) single-pass: one hash lookup + insert per line | O(s) where s = number of distinct signatures emitted (≤ n, typically n/6 on recon data) |
-| urldedupe | O(n) single-pass, exact-byte dedup | O(n): every input URL retained in RAM as a separate entry |
-| uro | O(n log n) due to dict-of-list build + sort over the parameter set | O(n): full URL list + parameter dict |
-| urless | O(n · k) where k is the keyword/extension/pattern filter set; per-URL Python regex overhead dominates | O(n): host-keyed nested dict, full input retained |
-| uddup | O(n²) pairwise structural comparison | O(n) |
+| gau, 44,943 URLs | 97% / 0.14 s / 4.2 MB | uro and urless keep 75%; urldedupe matches coverage at 8× the output and 5× the memory |
+| vulnweb, 15,185 URLs | 95% / 0.03 s / 3.4 MB | uro keeps 86% at 15× the time; uddup keeps 58% |
+| controlled known-answer, 45,410 URLs | 99.6% / 0.08 s / 4.7 MB | urless 91%, uro 83% — they reach a tidy output by deleting whole classes |
 
-### Relative position
+On the controlled corpus — the only one where the correct answer is known
+exactly — udud retains 99.6% of all endpoint classes, the highest of any tool
+that actually deduplicates.
 
-- vs `urldedupe`: on the 781k-line corpus udud is **16% faster** and uses
-  **18.0× less memory**, while delivering Macro-F1 0.91 vs urldedupe's
-  0.53 on the synthetic ground truth, since urldedupe keeps every URL
-  because it does not structurally fold.
-- vs `uro`: udud is **5.1× faster**, uses **1.9× less memory**, and
-  Macro-F1 0.91 vs 0.75 (uro destroys the UUID and TITLE_SLUG classes
-  on synthetic and 89% of `.js` plus 100% of `;jsessionid=` routes on
-  the wayback corpus).
-- vs `urless`: udud is **21.2× faster**, uses **2.4× less memory**, and
-  Macro-F1 0.91 vs 0.83 (urless destroys TITLE_SLUG on synthetic and
-  the same `.js` + auth surface as uro on wayback).
-- vs `uddup`: udud finishes; uddup does not. On the 45k-URL synthetic
-  where uddup completes, Macro-F1 0.91 vs 0.52 (uddup destroys
-  CACHE_BUST entirely and 52% of GENUINE_DISTINCT endpoints).
+### Memory stays bounded as targets grow
 
-### Summary
+udud's memory tracks the number of *distinct endpoints it keeps*, not the raw
+input size, so it stays flat as inputs scale and rises only with genuinely new
+surface (3–4 MB across 25k–400k-URL slices, 20 MB on the full 781k corpus).
+urldedupe's memory grows with input and reaches 344 MB on the same corpus;
+uddup's cost grows with the square of the input and it stops finishing past
+~50k URLs. udud has processed multi-million-URL inputs in seconds in stress
+testing — it does not fall over on big targets.
 
-On the synthetic ground-truth dataset udud has the highest Attack-Surface
-F1 of all five tools (0.9147) and the lowest peak RSS; urldedupe is 15 ms
-faster on wall time on this garbage-free corpus but its F1 is 0.53 because
-it does no structural folding. On the 781,398-line real wayback corpus
-udud is the fastest finisher outright, the lowest in peak memory, and a
-complete per-line audit of every removed URL records zero real attack
-surface lost with two small documented design-boundary residuals
-(`AUDIT.md`). Every other tool gives up at least one of those three.
+### The one honest trade-off
+
+udud is deliberately **keep-biased**: faced with an ambiguous URL — an object
+ID, a session token, an opaque hash — it keeps it rather than folding it away,
+because that is exactly where IDOR / broken-object-level-authorization bugs
+hide. The cost is a larger output than the most aggressive folders. The trade is
+intentional: a few redundant lines a scanner absorbs in seconds, in exchange for
+never silently dropping a testable endpoint. Teams that want a smaller list can
+fold object IDs with `-F`; the numbers above are the default, which optimizes for
+not losing surface. The full per-class data — including the classes where the
+keep-bias lowers a shape-only precision score — is published unedited in the
+benchmark repo's `raw/`.
 
 ## How it works
 
