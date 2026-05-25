@@ -8,7 +8,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/language-C-00599C.svg">
   <img src="https://img.shields.io/badge/dependencies-none-success.svg">
-  <img src="https://img.shields.io/badge/memory-23MB%20%2F%20781k%20URLs-success.svg">
+  <img src="https://img.shields.io/badge/memory-14MB%20%2F%20781k%20URLs-success.svg">
   <a href="https://github.com/ayodyadsr/udud-benchmark"><img src="https://img.shields.io/badge/benchmark-results-orange.svg"></a>
 </p>
 
@@ -24,8 +24,8 @@
 ---
 
 **udud** is a security-aware URL canonicalization engine written in C, built for
-the deduplication stage of an ASM/EASM recon pipeline. It reduces the raw URLs
-harvested for an asset into the working set scanners actually process, with high
+the deduplication stage of a recon pipeline. It reduces the raw URLs harvested
+for an asset into the working set scanners actually process, with high
 throughput, low memory, and a strong bias toward keeping real attack surface.
 
 The goal is not to make the output as small as possible. The goal is to make the
@@ -36,9 +36,9 @@ capacity, throughput and memory, in the same run:
 
 - **272k URLs/sec**, the fastest measured: 1.7x urldedupe, 6x uro, 26x urless,
   and it finishes where uddup never does (it gives up past ~50k URLs)
-- **23 MB peak memory**, the lowest measured: 15x lighter than urldedupe (336 MB),
+- **14 MB peak memory**, the lowest measured: 24x lighter than urldedupe (336 MB),
   so you run many assets in parallel on commodity hardware
-- **flat 22 MB and a constant rate to 6.25M URLs**, because memory tracks the
+- **flat 14 MB and a constant rate to 6.25M URLs**, because memory tracks the
   distinct endpoints kept, not the input size
 - **lowest false merge rate of any real deduplicator** (0.39% on known ground
   truth): it keeps more real endpoints than the aggressive folders (uro and
@@ -139,15 +139,15 @@ tool outputs, and the de-identified corpora) lives in
 All figures below are udud's **shipping default** (no flags), against each tool's
 documented invocation, on the same machine and the same inputs.
 
-The benchmark answers the question an ASM/EASM program cares about: how many
-URLs per second can one worker clear, at what memory cost, and of the distinct
+The benchmark answers the question a recon workflow cares about: how many URLs
+per second can one worker clear, at what memory cost, and of the distinct
 endpoints a target exposes, how many survive to actually get scanned.
 
 ### Large real target: Wayback capture, 781,398 URLs
 
 | Tool | Throughput | Peak memory | Endpoint classes kept | Scales? |
 |---|---:|---:|---:|:--:|
-| **udud (default)** | **272k URLs/sec** | **23 MB** | **84%** (best real deduplicator) | yes |
+| **udud (default)** | **272k URLs/sec** | **13.6 MB** | **84%** (best real deduplicator) | yes |
 | urldedupe | 159k URLs/sec | 336 MB | 100% (near-passthrough, 2.3x output) | memory-bound |
 | uro | 45k URLs/sec | 35 MB | 63% (folds away ~37% of classes) | slow |
 | urless | 10k URLs/sec | 45 MB | 67% (folds away ~33% of classes) | too slow |
@@ -157,7 +157,7 @@ endpoints a target exposes, how many survive to actually get scanned.
 same run. "Endpoint classes kept" is the security view: the fraction of the
 distinct kinds of endpoint that survive, counting every class equally. udud and
 urldedupe are the only two that do not throw surface away, but urldedupe gets
-there by barely deduplicating (2.3x the lines, 15x the memory), while uro and
+there by barely deduplicating (2.3x the lines, 24x the memory), while uro and
 urless produce a tidy short list by folding away a third of the endpoint classes,
 which is exactly what a scanner then never tests. udud keeps the most surface of
 any real deduplicator while also being the fastest and the lightest.
@@ -185,17 +185,17 @@ class, so it cannot mis-merge and has not deduplicated either.
 
 | Corpus | udud: kept / time / memory | for comparison |
 |---|---|---|
-| gau, 44,943 URLs | 97% / 0.16 s / 4.4 MB | uro and urless keep 75%; urldedupe matches coverage at 8x the output and 5x the memory |
-| vulnweb, 15,185 URLs | 95% / 0.02 s / 3.8 MB | uro keeps 86% at 10x the time; uddup keeps 58% |
-| controlled known-answer, 45,410 URLs | 99.6% / 0.10 s / 5.1 MB | urless 91%, uro 83%, by folding away whole classes |
+| gau, 44,943 URLs | 97% / 0.16 s / 3.5 MB | uro and urless keep 75%; urldedupe matches coverage at 8x the output and 6x the memory |
+| vulnweb, 15,185 URLs | 95% / 0.02 s / 3.4 MB | uro keeps 86% at 10x the time; uddup keeps 58% |
+| controlled known-answer, 45,410 URLs | 99.6% / 0.10 s / 3.9 MB | urless 91%, uro 83%, by folding away whole classes |
 
 ### Memory stays bounded as targets grow
 
 udud's memory tracks the number of distinct endpoints it keeps, not the raw input
 size, so it stays flat as inputs scale and rises only with genuinely new surface
-(3 to 4 MB across 25k to 400k-URL slices, 23 MB on the full 781k corpus).
-Replicating the corpus up to 6.25M URLs keeps peak memory flat at 22 MB and the
-rate constant at ~260k URLs/sec. urldedupe's memory grows with input and reaches
+(3 to 4 MB across 25k to 400k-URL slices, 13.6 MB on the full 781k corpus).
+Replicating the corpus up to 6.25M URLs keeps peak memory flat at 13.8 MB and the
+rate constant at ~270k URLs/sec. urldedupe's memory grows with input and reaches
 336 MB on the same corpus; uddup's cost grows with the square of the input and it
 stops finishing past ~50k URLs. udud does not fall over on big targets.
 
