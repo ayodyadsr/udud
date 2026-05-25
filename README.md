@@ -45,50 +45,76 @@ capacity, throughput and memory, in the same run:
   urless fold away roughly a third of the endpoint classes; udud keeps ~84% on
   this capture), including the object-ID endpoints where IDOR/BOLA bugs live
 
-| Raw Input URL | uro | urless | urldedupe | uddup | udud | Why udud? |
-|---|---|---|---|---|---|---|
-| `https://api.target.com/v1/user/1002/profile;jsessionid=deadbeef` | 🔴 | 🔴 | 🟢 | 🔴 | 🟢 | Matrix-parameter awareness. Session-bound routes can behave differently at the router or auth layer and are valuable for auth bypass or session confusion testing. |
-| `https://api.target.com/v1/user/1002/profile.json` | 🔴 | 🟢 | 🟢 | 🔴 | 🟢 | Alternate representation endpoint. Different extensions often trigger separate backend handlers, serializers, or access-control logic. |
-| `https://api.target.com/v1/user/1002/profile.bak` | 🔴 | 🟢 | 🟢 | 🔴 | 🟢 | Backup exposure detection. Backup artifacts frequently leak credentials, source code, or historical configs. |
-| `https://api.target.com/v1/user/1002/profile.old` | 🔴 | 🟢 | 🟢 | 🔴 | 🟢 | Legacy file preservation. Old or renamed resources are common sources of forgotten sensitive data. |
-| `https://api.target.com/v1/user/1002/export.csv` | 🔴 | 🟢 | 🟢 | 🔴 | 🟢 | Content-export endpoints are high-value targets. Alternate export formats may bypass validation or authorization layers. |
-| `https://api.target.com/v1/user/1002/export?format=xml` | 🔴 | 🟢 | 🟢 | 🟢 | 🟢 | Parameter-sensitive functionality. Format switches may expose XXE, parser inconsistencies, or hidden serializers. |
-| `https://api.target.com/v1/user/1002/reset-password?token=test` | 🔴 | 🟢 | 🟢 | 🟢 | 🟢 | Password-reset flows are security-critical. Tokenized variants should never be deduplicated away. |
-| `https://api.target.com/v1/admin/users/1002/permissions?debug=true` | 🔴 | 🟢 | 🟢 | 🟢 | 🟢 | Debug parameters on privileged admin APIs may expose verbose responses, stack traces, or hidden behaviors. |
-| `https://api.target.com/v1/admin/users/1002/roles?impersonate=true` | 🔴 | 🟢 | 🟢 | 🟢 | 🟢 | Impersonation-related parameters are extremely sensitive and useful for privilege-escalation testing. |
-| `https://api.target.com/v1/org/55/project/77/member/88` | 🔴 | 🔴 | 🟢 | 🔴 | 🟢 | Deep object hierarchy preserved. Nested IDs are prime BOLA/IDOR attack surface in multi-tenant APIs. |
-| `https://api.target.com/v1/org/55/project/77/member/89?include=secrets` | 🔴 | 🟢 | 🟢 | 🟢 | 🟢 | Sensitive expansion parameter. Include-style flags may expose internal fields or hidden objects. |
-| `https://api.target.com/v1/org/55/project/77/member/89/billing` | 🔴 | 🟢 | 🟢 | 🔴 | 🟢 | Financial subresources are high-impact endpoints and should survive deduplication. |
-| `https://api.target.com/v1/org/55/project/77/member/89/invoices/pdf` | 🔴 | 🟢 | 🟢 | 🔴 | 🟢 | Deep nested document-export route. Often overlooked by aggressive URL collapsing. |
-| `https://api.target.com/v1/org/55/project/77/member/89/activity?from=2025-01-01` | 🔴 | 🟢 | 🟢 | 🟢 | 🟢 | Time-filtered activity APIs may expose historical records or pagination logic bugs. |
-| `https://api.target.com/v1/org/55/project/77/member/89/activity?debug=1` | 🔴 | 🟢 | 🟢 | 🟢 | 🟢 | Debug toggles on activity endpoints can expose internal telemetry or verbose audit data. |
-| `https://api.target.com/v1/payment/transfer/preview` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | Transaction preview flows are distinct business-logic stages and deserve separate testing. |
-| `https://api.target.com/v1/payment/transfer/commit?race=test` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | Race-condition indicators are preserved because payment commit endpoints are critical for double-spend testing. |
-| `https://api.target.com/v1/payment/withdraw` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | Financial transaction endpoints are never “noise” during recon. |
-| `https://api.target.com/v1/payment/withdraw/confirm?step=2` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | Multi-step workflow routes are important for state-machine and logic-bypass testing. |
-| `https://api.target.com/v1/auth/session;jsessionid=AAAA1111` | 🔴 | 🔴 | 🟢 | 🔴 | 🟢 | Session-specific routing preserved. Matrix session identifiers may influence backend auth behavior. |
-| `https://api.target.com/v1/auth/session;jsessionid=BBBB2222` | 🔴 | 🔴 | 🟢 | 🔴 | 🟢 | Keeps multiple matrix-session variants instead of assuming they are interchangeable. |
-| `https://target.com/internal/debug?env=staging` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | Internal environment toggles are high-value recon targets that often expose non-production behavior. |
-| `https://target.com/internal/health` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | Health endpoints frequently leak versioning, infrastructure, or deployment metadata. |
-| `https://target.com/internal/metrics` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | Metrics endpoints can expose sensitive observability and infrastructure information. |
-| `https://target.com/internal/prometheus` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | Prometheus exporters are a known source of secrets, tokens, and topology leakage. |
-| `https://target.com/backup/.env` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | `.env` files commonly expose secrets, credentials, and API keys. |
-| `https://target.com/backup/.git/config` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | Git metadata exposure may reveal repository origins, usernames, and internal paths. |
-| `https://target.com/backup/database.sql` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | SQL dumps are catastrophic disclosure targets and should never be normalized away. |
-| `https://target.com/backup/export.phps` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | `.phps` source-disclosure endpoints may reveal raw PHP source code. |
-| `https://cdn.target.com/assets/mobile.apk` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | Mobile binaries are valuable recon artifacts for API extraction and secret discovery. |
-| `https://cdn.target.com/assets/mobile.ipa` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 | iOS application packages often contain endpoints, tokens, and hidden functionality. |
-| `https://api.target.com/graphql` | 🔴 | 🔴 | 🟢 | 🟢 | 🟢 | GraphQL endpoints are distinct attack surfaces and should not be collapsed into generic API noise. |
-| `https://api.target.com/graphql?query={users{id,role}}` | 🔴 | 🔴 | 🔴 | 🟢 | 🟢 | Query-bearing GraphQL requests may expose privileged schema paths or authorization flaws. |
-| `https://api.target.com/swagger.json` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | API schema exposure is high-value reconnaissance for endpoint enumeration. |
-| `https://api.target.com/openapi.json` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | OpenAPI documents provide structured attack surface mapping and parameter discovery. |
-| `https://api.target.com/v2/swagger.yaml` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | Versioned API specs are preserved separately to avoid losing newer attack surfaces. |
-| `https://api.target.com/v1/auth/session` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 | Smart redundancy folding. udud removes bare variants when richer matrix/query-decorated forms already preserve the route behavior. |
-| `https://api.target.com/v1/payment/transfer` | 🔴 | 🟢 | 🟢 | 🔴 | 🔴 | Noise reduction through parameter supersets. More feature-rich variants already cover the endpoint for fuzzing purposes. |
-| `https://api.target.com/v1/payment/transfer/commit` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 | Commit route already represented by a more security-interesting race-condition variant. |
-| `https://api.target.com/v1/auth/token/refresh` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 | Base token-refresh endpoint folded because parameterized versions preserve additional attack surface. |
-| `https://api.target.com/v1/user/1002/export` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 | Plain export route removed because extension and format-based variants provide broader test coverage. |
-| `https://api.target.com/v1/org/55/project/77/member/89/activity` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 | Generic activity route superseded by more interesting debug and date-filtered variants. |
+```markdown id="8mbz1q"
+| Raw Input URL | uro | urless | urldedupe | uddup | udud |
+|---|---|---|---|---|---|
+| `https://api.target.com/v1/user/1001/profile` | 🟢 | 🔴 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/v1/user/1002/profile` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 |
+| `https://api.target.com/v1/user/1002/profile?view=private` | 🔴 | 🔴 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/v1/user/1002/profile?role=admin` | 🔴 | 🔴 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/v1/user/1002/profile;jsessionid=deadbeef` | 🔴 | 🔴 | 🟢 | 🔴 | 🟢 |
+| `https://api.target.com/v1/user/1002/profile.json` | 🔴 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://api.target.com/v1/user/1002/profile.bak` | 🔴 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://api.target.com/v1/user/1002/profile.old` | 🔴 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://api.target.com/v1/user/1002/export` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 |
+| `https://api.target.com/v1/user/1002/export.csv` | 🔴 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://api.target.com/v1/user/1002/export?format=xml` | 🔴 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/v1/user/1002/reset-password` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 |
+| `https://api.target.com/v1/user/1002/reset-password?token=test` | 🔴 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/v1/admin/users/1002` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://api.target.com/v1/admin/users/1002/permissions` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 |
+| `https://api.target.com/v1/admin/users/1002/permissions?debug=true` | 🔴 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/v1/admin/users/1002/roles` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 |
+| `https://api.target.com/v1/admin/users/1002/roles?impersonate=true` | 🔴 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/v1/org/55/project/77/member/88` | 🟢 | 🔴 | 🟢 | 🔴 | 🟢 |
+| `https://api.target.com/v1/org/55/project/77/member/89` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 |
+| `https://api.target.com/v1/org/55/project/77/member/89?include=secrets` | 🔴 | 🔴 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/v1/org/55/project/77/member/89/billing` | 🔴 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://api.target.com/v1/org/55/project/77/member/89/invoices/pdf` | 🔴 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://api.target.com/v1/org/55/project/77/member/89/activity` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 |
+| `https://api.target.com/v1/org/55/project/77/member/89/activity?from=2025-01-01` | 🔴 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/v1/org/55/project/77/member/89/activity?debug=1` | 🔴 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/v1/payment/transfer` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 |
+| `https://api.target.com/v1/payment/transfer?currency=usd` | 🟢 | 🟢 | 🟢 | 🔴 | 🔴 |
+| `https://api.target.com/v1/payment/transfer?currency=usd&debug=true` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/v1/payment/transfer/preview` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://api.target.com/v1/payment/transfer/commit` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 |
+| `https://api.target.com/v1/payment/transfer/commit?race=test` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/v1/payment/withdraw` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://api.target.com/v1/payment/withdraw/confirm` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 |
+| `https://api.target.com/v1/payment/withdraw/confirm?step=2` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/v1/auth/session` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 |
+| `https://api.target.com/v1/auth/session;jsessionid=AAAA1111` | 🔴 | 🔴 | 🟢 | 🔴 | 🟢 |
+| `https://api.target.com/v1/auth/session;jsessionid=BBBB2222` | 🔴 | 🔴 | 🟢 | 🔴 | 🟢 |
+| `https://api.target.com/v1/auth/session?redirect=/admin` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/v1/auth/token/refresh` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 |
+| `https://api.target.com/v1/auth/token/refresh?device=mobile` | 🟢 | 🟢 | 🟢 | 🔴 | 🔴 |
+| `https://api.target.com/v1/auth/token/refresh?device=mobile&debug=true` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://target.com/internal/debug` | 🔴 | 🔴 | 🟢 | 🔴 | 🔴 |
+| `https://target.com/internal/debug?env=staging` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://target.com/internal/debug?env=production` | 🔴 | 🔴 | 🔴 | 🔴 | 🔴 |
+| `https://target.com/internal/health` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://target.com/internal/metrics` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://target.com/internal/prometheus` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://target.com/backup/config.zip` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://target.com/backup/config.tar.gz` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://target.com/backup/.env` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://target.com/backup/.git/config` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://target.com/backup/database.sql` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://target.com/backup/export.phps` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://cdn.target.com/assets/app.js.map` | 🟢 | 🟢 | 🟢 | 🟢 | 🔴 |
+| `https://cdn.target.com/assets/admin.js.map` | 🟢 | 🟢 | 🟢 | 🔴 | 🔴 |
+| `https://cdn.target.com/assets/mobile.apk` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://cdn.target.com/assets/mobile.ipa` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
+| `https://api.target.com/graphql` | 🔴 | 🔴 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/graphql?query={me{id,email}}` | 🟢 | 🟢 | 🟢 | 🟢 | 🔴 |
+| `https://api.target.com/graphql?query={users{id,role}}` | 🔴 | 🔴 | 🔴 | 🟢 | 🔴 |
+| `https://api.target.com/graphiql` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/swagger.json` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/openapi.json` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://api.target.com/v2/swagger.yaml` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
+```
+
 
 
 ## Installation
