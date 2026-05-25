@@ -45,7 +45,6 @@ capacity, throughput and memory, in the same run:
   urless fold away roughly a third of the endpoint classes; udud keeps ~84% on
   this capture), including the object-ID endpoints where IDOR/BOLA bugs live
 
-```markdown id="8mbz1q"
 | Raw Input URL | uro | urless | urldedupe | uddup | udud |
 |---|---|---|---|---|---|
 | `https://api.target.com/v1/user/1001/profile` | 🟢 | 🔴 | 🟢 | 🟢 | 🟢 |
@@ -113,9 +112,6 @@ capacity, throughput and memory, in the same run:
 | `https://api.target.com/swagger.json` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
 | `https://api.target.com/openapi.json` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
 | `https://api.target.com/v2/swagger.yaml` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
-```
-
-
 
 ## Installation
 
