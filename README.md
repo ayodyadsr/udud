@@ -101,8 +101,8 @@ capacity, throughput and memory, in the same run:
 | `https://target.com/backup/.git/config` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
 | `https://target.com/backup/database.sql` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
 | `https://target.com/backup/export.phps` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
-| `https://cdn.target.com/assets/app.js.map` | 🟢 | 🟢 | 🟢 | 🟢 | 🔴 |
-| `https://cdn.target.com/assets/admin.js.map` | 🟢 | 🟢 | 🟢 | 🔴 | 🔴 |
+| `https://cdn.target.com/assets/app.js.map` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
+| `https://cdn.target.com/assets/admin.js.map` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
 | `https://cdn.target.com/assets/mobile.apk` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
 | `https://cdn.target.com/assets/mobile.ipa` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
 | `https://api.target.com/graphql` | 🔴 | 🔴 | 🟢 | 🟢 | 🟢 |
