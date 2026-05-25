@@ -1,4 +1,24 @@
-/* udud v19 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
+/* udud v20 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
+ *
+ * v20.0: bare-endpoint fold (default). A path with NO matrix param and NO query
+ *      is dropped when the SAME base path also appears decorated - either with a
+ *      ';matrix' token or a '?query'. The bare line carries no parameter the
+ *      decorated sibling lacks, so the endpoint still reaches the scanner through
+ *      the richer line and the bare one is a pure duplicate of the route. So
+ *      /v1/auth/session is dropped once /v1/auth/session;jsessionid=... or
+ *      /v1/auth/session?redirect=/admin is present; /internal/debug is dropped
+ *      once /internal/debug?env=staging is present. The base key is the sig up to
+ *      the first ';' or '?', so a decorated line un-emits a bare line already kept
+ *      for it and a bare line is dropped on sight once any decorated sibling has
+ *      been seen. Endpoint-class coverage is preserved: the surviving decorated
+ *      line shares the same templated base, so no route class is lost; the change
+ *      only removes a redundant line, never surface. Deferred-emit (default mode)
+ *      only - a decorated sibling can arrive after the bare line and still drop
+ *      it. -k and -x stream one line at a time and are byte-identical to v19. A
+ *      base-path table (btab, 24 B/base, 128-bit keyed for exactness) tracks the
+ *      kept bare record and whether a decorated sibling was seen; peak RSS rises
+ *      a little (781k wayback 20.3 -> 22.7 MB, still well under uro's 34.8 MB) and
+ *      udud stays the lightest of all tools measured.
  *
  * v19.0: subset-merge is no longer O(n^2) on a single hot path. The default
  *      keyset merge kept, per base path, ONE flat antichain list and rescanned
@@ -647,6 +667,33 @@ static size_t gtab_slot(const char*s,size_t n){
     while(gtab[j].h0|gtab[j].h1){ if(gtab[j].h0==h0&&gtab[j].h1==h1) return j;
         j=(j+1)&(gcap-1); }
     gtab[j].h0=h0; gtab[j].h1=h1; gtab[j].head=-1; gcnt++; return j; }
+
+/* ---------- base-path bare-fold table (v20) ---------------------------------
+ * Drops a bare URL (no ';matrix' and no '?query') when the SAME base path
+ * also appears decorated - with a matrix param or a query. The endpoint still
+ * survives via the richer line, so the bare line is a redundant duplicate of
+ * an already-listed endpoint, not lost surface (path coverage is unchanged).
+ * Keyed on the base-path digest: sig[0..base_len) where base_len stops at the
+ * first ';' or '?'. A bare URL hashes its whole sig; a decorated one hashes
+ * the prefix before its ';' / '?', so the two collide exactly when they share
+ * the same endpoint. Deferred-emit (MERGE) only, so a decorated sibling that
+ * arrives AFTER the bare line can still un-emit it. bare_rec = the bare line's
+ * Rec index (-1 = none yet); decorated = a matrix/query sibling has appeared. */
+typedef struct { unsigned long long h0,h1; int bare_rec; int decorated; } BSlot;
+static BSlot *btab=NULL; static size_t bcap=0,bcnt=0;
+static void btab_init(size_t c){ bcap=1; while(bcap<c) bcap<<=1;
+    if(!(btab=calloc(bcap,sizeof(BSlot)))){perror("calloc");exit(1);} }
+static void btab_grow(void){ size_t oc=bcap; BSlot*ob=btab; bcap<<=1;
+    if(!(btab=calloc(bcap,sizeof(BSlot)))){perror("calloc");exit(1);}
+    for(size_t i=0;i<oc;i++){ if(!(ob[i].h0|ob[i].h1))continue; size_t j=ob[i].h0&(bcap-1);
+        while(btab[j].h0|btab[j].h1) j=(j+1)&(bcap-1); btab[j]=ob[i]; } free(ob); }
+static size_t btab_slot(const char*s,size_t n){
+    if(bcnt*4>=bcap*3) btab_grow();
+    unsigned long long h0,h1; hash128(s,n,&h0,&h1); if(!(h0|h1)) h0=1;
+    size_t j=h0&(bcap-1);
+    while(btab[j].h0|btab[j].h1){ if(btab[j].h0==h0&&btab[j].h1==h1) return j;
+        j=(j+1)&(bcap-1); }
+    btab[j].h0=h0; btab[j].h1=h1; btab[j].bare_rec=-1; btab[j].decorated=0; bcnt++; return j; }
 
 /* ---------- per-(path,cardinality) buckets ----------------------------------
  * A path's records are split into buckets, one per distinct key-set size. Two
@@ -1695,6 +1742,7 @@ int main(int argc,char**argv){
     if(!X){ garbage_init(); tld_init(); }
     tab_init(1<<16);
     gtab_init(1<<14);
+    btab_init(1<<14);
     /* v15 line reader: read() into a 128 KB block buffer, memchr for '\n',
      * yield a (const char*, size_t) pair. A line that crosses the buffer
      * boundary is moved to the start with memmove and the next read()
@@ -1933,7 +1981,28 @@ int main(int argc,char**argv){
                 #undef OC
             }
             size_t olen=arena_len-off;
-            if(!is_qgroup){ rec_push(off,(unsigned)olen,0,0,-1); kept++; continue; }
+            /* v20 bare-fold: key on the base path (sig up to first ';' or '?').
+             * A decorated line (matrix/query) marks the base and un-emits any
+             * bare line already kept for it; a bare line is dropped on sight if
+             * a decorated sibling was seen first. */
+            size_t base_len=0; while(base_len<o&&sig[base_len]!=';'&&sig[base_len]!='?') base_len++;
+            int bare=(base_len==o);
+            size_t bslot=btab_slot(sig,base_len);
+            if(!bare){
+                btab[bslot].decorated=1;
+                int br=btab[bslot].bare_rec;
+                if(br>=0&&!REC_DROPPED(br)){ REC_SETDROP(br); kept--; }
+            }
+            if(!is_qgroup){
+                int bidx=(int)rec_cnt;
+                rec_push(off,(unsigned)olen,0,0,-1);
+                if(bare){
+                    if(btab[bslot].decorated) REC_SETDROP(bidx);   /* sibling already present */
+                    else kept++;
+                    btab[bslot].bare_rec=bidx;
+                } else kept++;                                     /* matrix line survives */
+                continue;
+            }
             /* query record: stash the key-set bytes (ks_relation needs the real
              * names for the subset test), then drop-or-keep against the path's
              * existing records (an antichain of maximal key-sets). */

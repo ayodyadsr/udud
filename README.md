@@ -8,7 +8,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/language-C-00599C.svg">
   <img src="https://img.shields.io/badge/dependencies-none-success.svg">
-  <img src="https://img.shields.io/badge/memory-20MB%20%2F%20781k%20URLs-success.svg">
+  <img src="https://img.shields.io/badge/memory-23MB%20%2F%20781k%20URLs-success.svg">
   <a href="https://github.com/ayodyadsr/udud-benchmark"><img src="https://img.shields.io/badge/benchmark-results-orange.svg"></a>
 </p>
 
@@ -23,20 +23,27 @@
 
 ---
 
-**udud** udud is a streaming-first URL deduplication tool written in C, focused on preserving real attack surface while maintaining extremely high throughput and low runtime overhead.
+**udud** is a security-aware URL canonicalization engine written in C, built for
+the deduplication stage of an ASM/EASM recon pipeline. It reduces the raw URLs
+harvested for an asset into the working set scanners actually process, with high
+throughput, low memory, and a strong bias toward keeping real attack surface.
 
-The goal is not to make the output as small as possible. The goal is to make the output cleaner without losing real attack surface.
+The goal is not to make the output as small as possible. The goal is to make the
+output cleaner without losing real attack surface.
 
-On a real 781,398-URL recon capture, udud is the only deduplicator that keeps
-the attack surface intact *and* stays cheap enough to run at fleet scale:
+On a real 781,398-URL recon capture, udud leads on the two things that set fleet
+capacity, throughput and memory, in the same run:
 
-- **3.2× faster** than urldedupe, **14× faster** than uro, **59× faster** than
-  urless, and it finishes where uddup never does (>15 min, gives up)
-- **17× less memory** than urldedupe (20 MB vs 344 MB) — so you can run many
-  targets in parallel on commodity hardware instead of one memory-hungry job
-- **keeps more real endpoints** than the aggressive folders (uro and urless
-  delete roughly a third of the endpoint classes; udud keeps ~84%, including the
-  object-ID endpoints where IDOR/BOLA bugs live)
+- **272k URLs/sec**, the fastest measured: 1.7x urldedupe, 6x uro, 26x urless,
+  and it finishes where uddup never does (it gives up past ~50k URLs)
+- **23 MB peak memory**, the lowest measured: 15x lighter than urldedupe (336 MB),
+  so you run many assets in parallel on commodity hardware
+- **flat 22 MB and a constant rate to 6.25M URLs**, because memory tracks the
+  distinct endpoints kept, not the input size
+- **lowest false merge rate of any real deduplicator** (0.39% on known ground
+  truth): it keeps more real endpoints than the aggressive folders (uro and
+  urless fold away roughly a third of the endpoint classes; udud keeps ~84% on
+  this capture), including the object-ID endpoints where IDOR/BOLA bugs live
 
 ## Features
 
@@ -49,6 +56,7 @@ the attack surface intact *and* stays cheap enough to run at fleet scale:
 | `https://internal-service.target.com/v1/health` | 🔴 DROPPED | 🟢 KEPT | Multi-domain awareness. udud keeps separate hosts and microservices even if the URL structure looks repetitive. |
 | `https://target.com/v2/auth/session;jsessionid=abc123xyz` | 🔴 DROPPED | 🟢 KEPT | Matrix-parameter awareness. Session-related parameters are preserved because they may affect authentication or routing behavior. |
 | `https://api.target.com/v2/user?id=1` | 🟢 KEPT | 🔴 DROPPED | Smart parameter merging. If a richer parameter set already exists, udud removes smaller redundant variants to reduce duplicate fuzzing. |
+| `https://api.target.com/v1/auth/session` | 🟢 KEPT | 🔴 DROPPED | Redundant bare route. When the same path also appears with a matrix token (`;jsessionid=...`) or a query (`?redirect=/admin`), the plain line adds no parameter the decorated sibling lacks, so udud folds it. The endpoint still reaches the scanner through the richer line. |
 | `https://target.com/backup/v1/export.phps` | 🔴 DROPPED | 🟢 KEPT | Source disclosure protection. Sensitive extensions like `.phps` or backup files are preserved because they may leak source code. |
 | `https://target.com/assets/videos/promo_main.m4a` | 🟢 KEPT | 🔴 DROPPED | Smart noise filtering. Static media files are removed to keep recon results cleaner and more focused. |
 
@@ -123,71 +131,85 @@ cat urls.txt | udud -F        # they collapse to one endpoint witness
 
 ## Benchmark
 
-A full, reproducible benchmark — methodology, every per-trial timing, the raw
-tool outputs, and the de-identified corpora — lives in
+A full, reproducible benchmark (methodology, every per-trial timing, the raw
+tool outputs, and the de-identified corpora) lives in
 [ayodyadsr/udud-benchmark](https://github.com/ayodyadsr/udud-benchmark)
 ([BENCHMARK.md](https://github.com/ayodyadsr/udud-benchmark/blob/main/BENCHMARK.md),
 [ANONYMIZATION.md](https://github.com/ayodyadsr/udud-benchmark/blob/main/ANONYMIZATION.md)).
 All figures below are udud's **shipping default** (no flags), against each tool's
 documented invocation, on the same machine and the same inputs.
 
-The benchmark answers the question that matters to a security program: *of the
-distinct endpoints a target exposes, how many survive deduplication to actually
-get scanned — and what does it cost to find out?*
+The benchmark answers the question an ASM/EASM program cares about: how many
+URLs per second can one worker clear, at what memory cost, and of the distinct
+endpoints a target exposes, how many survive to actually get scanned.
 
-### Large real target — Wayback capture, 781,398 URLs
+### Large real target: Wayback capture, 781,398 URLs
 
-| Tool | Endpoint classes kept | Processing time | Memory | Scales? |
+| Tool | Throughput | Peak memory | Endpoint classes kept | Scales? |
 |---|---:|---:|---:|:--:|
-| **udud (default)** | **84%** (best real deduplicator) | **2.9 s** | **20 MB** | yes |
-| urldedupe | 100% — but near-passthrough (2.2× the output) | 9.4 s | 344 MB | memory-bound |
-| uro | 63% (deletes ~37% of endpoint classes) | 39.8 s | 36 MB | slow |
-| urless | 67% (deletes ~33% of endpoint classes) | 172 s | 46 MB | too slow |
-| uddup | — | did not finish (>15 min) | — | no |
+| **udud (default)** | **272k URLs/sec** | **23 MB** | **84%** (best real deduplicator) | yes |
+| urldedupe | 159k URLs/sec | 336 MB | 100% (near-passthrough, 2.3x output) | memory-bound |
+| uro | 45k URLs/sec | 35 MB | 63% (folds away ~37% of classes) | slow |
+| urless | 10k URLs/sec | 45 MB | 67% (folds away ~33% of classes) | too slow |
+| uddup | did not finish | n/a | n/a | no |
 
-**How to read it.** "Endpoint classes kept" is the security view — the fraction
-of the distinct *kinds* of endpoint in the corpus that survive, counting every
-class equally (so a rare-but-critical endpoint type weighs the same as a common
-one). udud and urldedupe are the only two that don't throw surface away — but
-urldedupe gets there by barely deduplicating (2.2× the lines, 17× the memory),
-while uro and urless produce a tidy short list by deleting a third of the
-endpoint classes, which is exactly what a scanner then never tests. udud keeps
-the most surface of any real deduplicator while also being the fastest and the
-lightest.
+**How to read it.** udud is first on throughput and first on peak memory in the
+same run. "Endpoint classes kept" is the security view: the fraction of the
+distinct kinds of endpoint that survive, counting every class equally. udud and
+urldedupe are the only two that do not throw surface away, but urldedupe gets
+there by barely deduplicating (2.3x the lines, 15x the memory), while uro and
+urless produce a tidy short list by folding away a third of the endpoint classes,
+which is exactly what a scanner then never tests. udud keeps the most surface of
+any real deduplicator while also being the fastest and the lightest.
+
+### The security metric: false merge rate on known ground truth
+
+On the controlled corpus the correct grouping is known exactly, so a merge that
+destroys a distinct endpoint class can be counted. False merge rate is the
+fraction of classes a tool wrongly collapses (lower is better, since each wrong
+merge removes an endpoint from every later scan):
+
+| Tool | False merge rate |
+|---|---:|
+| **udud** | **0.39%** |
+| urldedupe | 0% (near-passthrough) |
+| urless | 8.6% |
+| uddup | 14.3% |
+| uro | 16.9% |
+
+udud has the lowest false merge rate of any tool that actually reduces the input.
+urldedupe's 0% is the passthrough artifact: it keeps ~80 redundant lines per
+class, so it cannot mis-merge and has not deduplicated either.
 
 ### Smaller targets confirm the pattern
 
 | Corpus | udud: kept / time / memory | for comparison |
 |---|---|---|
-| gau, 44,943 URLs | 97% / 0.14 s / 4.2 MB | uro and urless keep 75%; urldedupe matches coverage at 8× the output and 5× the memory |
-| vulnweb, 15,185 URLs | 95% / 0.03 s / 3.4 MB | uro keeps 86% at 15× the time; uddup keeps 58% |
-| controlled known-answer, 45,410 URLs | 99.6% / 0.08 s / 4.7 MB | urless 91%, uro 83% — they reach a tidy output by deleting whole classes |
-
-On the controlled corpus — the only one where the correct answer is known
-exactly — udud retains 99.6% of all endpoint classes, the highest of any tool
-that actually deduplicates.
+| gau, 44,943 URLs | 97% / 0.16 s / 4.4 MB | uro and urless keep 75%; urldedupe matches coverage at 8x the output and 5x the memory |
+| vulnweb, 15,185 URLs | 95% / 0.02 s / 3.8 MB | uro keeps 86% at 10x the time; uddup keeps 58% |
+| controlled known-answer, 45,410 URLs | 99.6% / 0.10 s / 5.1 MB | urless 91%, uro 83%, by folding away whole classes |
 
 ### Memory stays bounded as targets grow
 
-udud's memory tracks the number of *distinct endpoints it keeps*, not the raw
-input size, so it stays flat as inputs scale and rises only with genuinely new
-surface (3–4 MB across 25k–400k-URL slices, 20 MB on the full 781k corpus).
-urldedupe's memory grows with input and reaches 344 MB on the same corpus;
-uddup's cost grows with the square of the input and it stops finishing past
-~50k URLs. udud has processed multi-million-URL inputs in seconds in stress
-testing — it does not fall over on big targets.
+udud's memory tracks the number of distinct endpoints it keeps, not the raw input
+size, so it stays flat as inputs scale and rises only with genuinely new surface
+(3 to 4 MB across 25k to 400k-URL slices, 23 MB on the full 781k corpus).
+Replicating the corpus up to 6.25M URLs keeps peak memory flat at 22 MB and the
+rate constant at ~260k URLs/sec. urldedupe's memory grows with input and reaches
+336 MB on the same corpus; uddup's cost grows with the square of the input and it
+stops finishing past ~50k URLs. udud does not fall over on big targets.
 
 ### The one honest trade-off
 
-udud is deliberately **keep-biased**: faced with an ambiguous URL — an object
-ID, a session token, an opaque hash — it keeps it rather than folding it away,
-because that is exactly where IDOR / broken-object-level-authorization bugs
-hide. The cost is a larger output than the most aggressive folders. The trade is
+udud is deliberately **keep-biased**: faced with an ambiguous URL, an object ID,
+a session token, or an opaque hash, it keeps it rather than fold it away, because
+that is exactly where IDOR and broken-object-level-authorization bugs hide. The
+cost is a larger output than the most aggressive folders. The trade is
 intentional: a few redundant lines a scanner absorbs in seconds, in exchange for
 never silently dropping a testable endpoint. Teams that want a smaller list can
 fold object IDs with `-F`; the numbers above are the default, which optimizes for
-not losing surface. The full per-class data — including the classes where the
-keep-bias lowers a shape-only precision score — is published unedited in the
+not losing surface. The full per-class data, including the classes where the
+keep-bias lowers a shape-only precision score, is published unedited in the
 benchmark repo's `raw/`.
 
 ## How it works
@@ -202,17 +224,29 @@ stays verbatim so distinct object-ids stay distinct. UUID, hex of length
 every id is templated (digits to `N`, UUID to `U`, long hex to `H`,
 `stem-<id>` to `stem-#`) regardless of context.
 
-The query decides the grouping. A URL with no query gets its own
-signature. Query URLs of one path are grouped by path alone, then pruned
-by subset: among the query variants of a path udud keeps the antichain of
-maximal key-sets, dropping a variant only when its keys are a subset of a
-kept one (the survivor loses no parameter). Variants with non-overlapping
-keys all stay, and the no-query URL stays a separate group. Because a
-covering superset can arrive after a subset, the default output is
-buffered and written at end of input, the kept real URLs in first-seen
-order. Pass `-k` to put the full query in the signature instead, which
-keeps every distinct key-set on its own line and restores streaming
-output.
+The query decides the grouping. Query URLs of one path are grouped by
+path alone, then pruned by subset: among the query variants of a path
+udud keeps the antichain of maximal key-sets, dropping a variant only
+when its keys are a subset of a kept one (the survivor loses no
+parameter). Variants with non-overlapping keys all stay.
+
+A bare URL, one with no matrix token and no query, is dropped when the
+same base path also appears decorated, either with a `;matrix` token or a
+`?query`. The bare line carries no parameter the decorated sibling lacks,
+so the endpoint still reaches the scanner through the richer line and the
+bare line is a pure duplicate of the route. So `/v1/auth/session` is
+folded once `/v1/auth/session;jsessionid=...` or
+`/v1/auth/session?redirect=/admin` is present. The base key is the
+signature up to the first `;` or `?`, so a decorated line removes a bare
+line already kept for it and a bare line is dropped on sight once any
+decorated sibling has been seen. The surviving decorated line shares the
+same templated base, so no endpoint class is lost.
+
+Because a covering superset (or a decorated sibling) can arrive after a
+subset (or a bare line), the default output is buffered and written at end
+of input, the kept real URLs in first-seen order. Pass `-k` to put the
+full query in the signature instead, which keeps every distinct key-set on
+its own line, disables the bare-fold, and restores streaming output.
 
 Only the signature is compared and the URL that gets printed is never
 rewritten, just selected. Memory scales with the number of unique
