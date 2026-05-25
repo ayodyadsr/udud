@@ -45,8 +45,6 @@ capacity, throughput and memory, in the same run:
   urless fold away roughly a third of the endpoint classes; udud keeps ~84% on
   this capture), including the object-ID endpoints where IDOR/BOLA bugs live
 
-## Features
-
 | Raw Input URL | Other Tools | udud (Default) | Why udud is Better? |
 |---|---|---|---|
 | `https://api.target.com/v2/tenant/100/billing` | 🔴 DROPPED | 🟢 KEPT | Critical BOLA / IDOR target. Many tools remove sequential IDs after seeing similar paths, which can hide cross-tenant authorization issues. |
