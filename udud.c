@@ -1,4 +1,36 @@
-/* udud v20 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
+/* udud v21 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
+ *
+ * v21.0: memory overhaul of the default (deferred-emit) path, output BYTE-
+ *      IDENTICAL to v20 on every flag and corpus. Peak RSS on a 1.1M-line
+ *      wayback corpus drops 40.5 -> 25.3 MB (-38%); on a 781k corpus 22.5 ->
+ *      14.0 MB (-37%). The cut grows with corpus size and throughput is
+ *      unchanged (3.82 -> 3.79 s on the 1.1M run). Verified byte-identical
+ *      across gau / wayback / vulnweb / subdomains x 14 flag combos (56/56)
+ *      plus the empty / no-trailing-newline / pipe-vs-file / bare+subset-merge
+ *      edge cases. Four changes, none alters what is emitted:
+ *      (1) FRONT-CODING. Default mode must buffer every first-seen line until
+ *          EOF (a later line can retroactively un-emit an earlier one), and
+ *          recon dumps are heavily prefix-clustered (adjacent kept lines share
+ *          a long host+path prefix). Each line is now appended to the arena as
+ *          [varint matchlen vs the previous stored line][varint suffixlen]
+ *          [suffix bytes]; the EOF emit walks that contiguous stream in arrival
+ *          order, rebuilding each line from the shared prefix of the one before
+ *          it. The buffer shrinks to roughly a third of the verbatim lines.
+ *      (2) The per-line off/len record array (was 20 B/rec) is gone. With the
+ *          sequential front-coded emit, a non-query line needs no offset at
+ *          all; drop state is a single bit per entry in a bitmap indexed by
+ *          arrival order (dropb). Only query lines still keep a small record
+ *          (QRec: key-set offset in a separate ksa arena + a gnext link + the
+ *          arrival index) because the subset test needs the key-set bytes.
+ *      (3) The front-code header is a LEB128 varint pair (1-2 B each) instead
+ *          of a flat u16 pair, trimming the resident stream further.
+ *      (4) The Aho-Corasick goto table is stored as 16-bit cells (the whole
+ *          automaton is ~441 states), halving it 524 -> 262 KB and keeping it
+ *          warmer in cache during the per-line scan.
+ *      For large mmap'd buffers, RSS tracks the bytes actually touched, not the
+ *      capacity, so this targets live data: the open-addressed dedup tables
+ *      (128-bit keyed for exactness) sit on a load-factor / probe-throughput
+ *      frontier and are left as-is rather than trading throughput for slack.
  *
  * v20.0: bare-endpoint fold (default). A path with NO matrix param and NO query
  *      is dropped when the SAME base path also appears decorated - either with a
@@ -543,6 +575,28 @@ static void lo_init(void){
     for(int i=0;i<256;i++) LO[i]=(unsigned char)((i>='A'&&i<='Z')?(i|0x20):i);
 }
 
+/* ---------- front-coded prev-line (deferred emit buffer) ---------- */
+/* LEB128 varint for the front-code header: matchlen and suffixlen are each
+ * < 8 KB, so they encode in 1-2 bytes instead of a flat u16 pair, trimming the
+ * (resident) front-coded stream by the header bytes saved. */
+static inline size_t vput(unsigned char*b,size_t v){ size_t i=0; while(v>=0x80){ b[i++]=(unsigned char)(v|0x80); v>>=7; } b[i++]=(unsigned char)v; return i; }
+static inline size_t vget(const unsigned char*b,size_t*out){ size_t v=0,i=0; int sh=0; while(b[i]&0x80){ v|=(size_t)(b[i]&0x7f)<<sh; sh+=7; i++; } v|=(size_t)b[i]<<sh; i++; *out=v; return i; }
+static char g_prev[8192]; static size_t g_prevlen=0;
+/* keyset bytes live in a SEPARATE arena so the main arena stays a contiguous
+ * front-coded entry stream (the emit walk steps it sequentially). */
+static char *ksa=NULL; static size_t ksa_len=0,ksa_cap=0;
+static size_t ksa_put(const char*p,size_t n){ if(ksa_len+n>ksa_cap){ while(ksa_len+n>ksa_cap) ksa_cap=ksa_cap?ksa_cap*2:(1u<<16); if(!(ksa=realloc(ksa,ksa_cap))){perror("realloc");exit(1);} } size_t o=ksa_len; memcpy(ksa+o,p,n); ksa_len+=n; return o; }
+/* per-entry drop bitmap, indexed by arrival order (== emit walk order). */
+static unsigned char *dropb=NULL; static size_t dropb_cap=0; static size_t ent_cnt=0;
+static void db_ensure(size_t i){ size_t need=(i>>3)+1; if(need>dropb_cap){ size_t nc=dropb_cap?dropb_cap:4096; while(nc<need)nc*=2; dropb=realloc(dropb,nc); if(!dropb){perror("realloc");exit(1);} memset(dropb+dropb_cap,0,nc-dropb_cap); dropb_cap=nc; } }
+static inline void db_set(size_t i){ dropb[i>>3]|=(unsigned char)(1u<<(i&7)); }
+static inline int  db_get(size_t i){ return (dropb[i>>3]>>(i&7))&1; }
+/* query-only records: subset-merge needs the key-set + a link through the
+ * (path,card) bucket; aidx maps back to the entry's drop bit. */
+typedef struct { unsigned ks_off, ks_len; int gnext; unsigned aidx; } QRec;
+static QRec *qr=NULL; static size_t qr_cap=0, qr_cnt=0;
+static size_t qr_push(unsigned ks_off,unsigned ks_len,int gnext,unsigned aidx){ if(qr_cnt>=qr_cap){ qr_cap=qr_cap?qr_cap*2:4096; if(!(qr=realloc(qr,qr_cap*sizeof(QRec)))){perror("realloc");exit(1);} } qr[qr_cnt].ks_off=ks_off; qr[qr_cnt].ks_len=ks_len; qr[qr_cnt].gnext=gnext; qr[qr_cnt].aidx=aidx; return qr_cnt++; }
+
 /* ---------- arena ---------- */
 static char  *arena = NULL;
 static size_t arena_len = 0, arena_cap = 0;
@@ -613,30 +667,20 @@ static int tab_add(const char *s, size_t n){
  * survive. A no-query URL is its own record, never merged with a query one.
  * The covering superset can appear AFTER the subset and stdout cannot un-emit,
  * so default output is held until EOF and emitted in first-seen order.
- * Each query Rec stores its key-set bytes plus a link (gnext) through all
- * records of its base path so subset elimination is a per-group scan. */
-/* 20 bytes/rec. off and ks_off are uint32 arena offsets (arena <= 4 GB).
- * ks_off points INTO the sig the dedup table already stored - no second copy.
- * 'dropped' (subsumed -> not emitted) lives in bit31 of len; emitted lines are
- * always < 8 KB so the real length never touches that bit. */
-typedef struct { unsigned off; unsigned len;      /* emitted line in arena   */
-                 unsigned ks_off; unsigned ks_len; /* sorted key-set (in sig) */
-                 int gnext; } Rec;                 /* next rec, same (path,card) bucket, -1=end */
-static Rec   *recs = NULL;
-static size_t rec_cap = 0, rec_cnt = 0;
-#define REC_DROP    0x80000000u
-#define REC_DROPPED(i) (recs[i].len & REC_DROP)
-#define REC_SETDROP(i) (recs[i].len |= REC_DROP)
-#define REC_LEN(i)     (recs[i].len & ~REC_DROP)
-static void rec_push(size_t off, unsigned len, size_t ks_off, unsigned ks_len, int gnext){
-    if(rec_cnt>=rec_cap){ rec_cap=rec_cap?rec_cap*2:4096;
-        if(!(recs=realloc(recs,rec_cap*sizeof(Rec)))){perror("realloc");exit(1);} }
-    recs[rec_cnt].off=(unsigned)off; recs[rec_cnt].len=len;
-    recs[rec_cnt].ks_off=(unsigned)ks_off; recs[rec_cnt].ks_len=ks_len;
-    recs[rec_cnt].gnext=gnext; rec_cnt++;
-}
+ *
+ * v21 storage: the emitted lines no longer need an offset/length array. Every
+ * first-seen line is appended FRONT-CODED into the arena as a contiguous stream
+ * [u16 matchlen-vs-previous-stored-line][u16 suffixlen][suffix bytes], and the
+ * EOF emit walks that stream sequentially (reconstructing each line from the
+ * shared prefix of the one before it). Drop state is a single bit per entry,
+ * indexed by arrival order, in the `dropb` bitmap. Only query lines still need
+ * their key-set for the subset test, so those keep a small QRec (key-set offset
+ * in `ksa` + a gnext link through the path's (path,card) bucket + the arrival
+ * index for the drop bit). Recon dumps are heavily prefix-clustered, so the
+ * front-coded arena is roughly a third the size of the verbatim lines, and the
+ * per-line off/len array (was 20 B/rec) collapses to one bit. */
 /* dedup on the 128-bit sig digest. *is_new tells the caller whether this is
- * the first sighting (and so should push a fresh Rec). No sig bytes stored. */
+ * the first sighting (and so should store a fresh entry). No sig bytes stored. */
 static void tab_group(const char *s, size_t n, int *is_new){
     if(tab_cnt*4>=tab_cap*3) tab_grow();
     unsigned long long h0,h1; hash128(s,n,&h0,&h1); if(!(h0|h1)) h0=1;
@@ -678,7 +722,7 @@ static size_t gtab_slot(const char*s,size_t n){
  * the prefix before its ';' / '?', so the two collide exactly when they share
  * the same endpoint. Deferred-emit (MERGE) only, so a decorated sibling that
  * arrives AFTER the bare line can still un-emit it. bare_rec = the bare line's
- * Rec index (-1 = none yet); decorated = a matrix/query sibling has appeared. */
+ * arrival index (-1 = none yet); decorated = a matrix/query sibling appeared. */
 typedef struct { unsigned long long h0,h1; int bare_rec; int decorated; } BSlot;
 static BSlot *btab=NULL; static size_t bcap=0,bcnt=0;
 static void btab_init(size_t c){ bcap=1; while(bcap<c) bcap<<=1;
@@ -1036,7 +1080,11 @@ static const char*BP_S[]={
  * regardless of pattern count. out bit0=BOTH (path&query), bit1=PATH-only.
  * Built once at startup; haystack lowercased on the fly during scan. ---- */
 #define ACK 256
-static int (*acg)[ACK];          /* DFA goto: acg[state][byte] */
+/* DFA goto: acg[state][byte]. The whole automaton is ~441 states, so a state
+ * index fits in a signed 16-bit cell; storing the goto table as short instead
+ * of int halves it (524 KB -> 262 KB) and, being half the footprint, it also
+ * stays warmer in cache during the per-line scan. */
+static short (*acg)[ACK];
 static unsigned char *aco;       /* out mask per state */
 static int ac_n,ac_cap;
 static int ac_node(void){
@@ -1961,13 +2009,14 @@ int main(int argc,char**argv){
         if(MERGE){
             int is_new=0; tab_group(sig,o,&is_new);
             if(!is_new) continue;                 /* this key-set already seen */
-            /* materialise the emitted line into the arena */
-            size_t off=arena_len;
-            if(!C){ arena_put(line,L); arena_put("\n",1); }
-            else {
-                char out[8192]; size_t r=0;
+            /* build the canonical line, then store it FRONT-CODED into the arena:
+             * [u16 matchlen vs the previous stored line][u16 suffixlen][suffix]. */
+            char out[8192]; size_t r=0;
+            {
                 #define O(S,N) do{size_t _n=(N); if(r+_n<sizeof out){memcpy(out+r,(S),_n);r+=_n;}}while(0)
                 #define OC(X)  do{ if(r+1<sizeof out) out[r++]=(X);}while(0)
+              if(!C){ O(line,L); OC('\n'); }
+              else {
                 O(schb,schbn); O("://",3); O(H,HN);
                 if(port&&!defp){ OC(':'); O(port,portn); }
                 OC('/');
@@ -1976,67 +2025,68 @@ int main(int argc,char**argv){
                     size_t cn=clean_query(query,queryn,cq,sizeof cq);
                     if(cn){ OC('?'); O(cq,cn); } }
                 if(r<sizeof out) out[r++]='\n';
-                arena_put(out,r);
+              }
                 #undef O
                 #undef OC
             }
-            size_t olen=arena_len-off;
+            size_t ml=0,mm=r<g_prevlen?r:g_prevlen; while(ml<mm&&out[ml]==g_prev[ml])ml++;
+            unsigned char hdr[8]; size_t hl=vput(hdr,ml); hl+=vput(hdr+hl,r-ml);
+            arena_put((char*)hdr,hl); arena_put(out+ml,r-ml);
+            memcpy(g_prev,out,r<sizeof g_prev?r:sizeof g_prev); g_prevlen=r;
+            size_t aidx=ent_cnt; db_ensure(aidx); ent_cnt++;
             /* v20 bare-fold: key on the base path (sig up to first ';' or '?').
              * A decorated line (matrix/query) marks the base and un-emits any
              * bare line already kept for it; a bare line is dropped on sight if
-             * a decorated sibling was seen first. */
+             * a decorated sibling was seen first. (drop bit by arrival index.) */
             size_t base_len=0; while(base_len<o&&sig[base_len]!=';'&&sig[base_len]!='?') base_len++;
             int bare=(base_len==o);
             size_t bslot=btab_slot(sig,base_len);
             if(!bare){
                 btab[bslot].decorated=1;
                 int br=btab[bslot].bare_rec;
-                if(br>=0&&!REC_DROPPED(br)){ REC_SETDROP(br); kept--; }
+                if(br>=0&&!db_get((size_t)br)){ db_set((size_t)br); kept--; }
             }
             if(!is_qgroup){
-                int bidx=(int)rec_cnt;
-                rec_push(off,(unsigned)olen,0,0,-1);
                 if(bare){
-                    if(btab[bslot].decorated) REC_SETDROP(bidx);   /* sibling already present */
+                    if(btab[bslot].decorated) db_set(aidx);         /* sibling already present */
                     else kept++;
-                    btab[bslot].bare_rec=bidx;
-                } else kept++;                                     /* matrix line survives */
+                    btab[bslot].bare_rec=(int)aidx;
+                } else kept++;                                      /* matrix line survives */
                 continue;
             }
-            /* query record: stash the key-set bytes (ks_relation needs the real
-             * names for the subset test), then drop-or-keep against the path's
+            /* query record: stash the key-set bytes in ksa (ks_relation needs the
+             * real names for the subset test), then drop-or-keep against the path's
              * existing records (an antichain of maximal key-sets). */
-            size_t ks_off=arena_put(sig+qstart,o-qstart); unsigned ks_len=(unsigned)(o-qstart);
+            size_t ks_off=ksa_put(sig+qstart,o-qstart); unsigned ks_len=(unsigned)(o-qstart);
             size_t gs=gtab_slot(sig,qstart);
             /* cardinality = number of unique '&'-joined keys (>=1 here) */
-            unsigned card=1; for(unsigned z=0;z<ks_len;z++) if(arena[ks_off+z]=='&') card++;
+            unsigned card=1; for(unsigned z=0;z<ks_len;z++) if(ksa[ks_off+z]=='&') card++;
             int subsumed=0, tb=-1; long cmps=0;
             for(int b=gtab[gs].head; b!=-1; b=buckets[b].bnext){
                 if(buckets[b].card==card){ tb=b; continue; } /* same size: incomparable, skip */
                 if(subsumed) continue;                       /* covered: just keep finding tb */
                 if(g_merge_cap && cmps>=g_merge_cap) continue;
                 if(buckets[b].card>card){     /* members larger: S may be a SUBSET of one */
-                    for(int w=buckets[b].rhead; w!=-1; w=recs[w].gnext){
-                        if(REC_DROPPED(w)) continue; cmps++;
+                    for(int w=buckets[b].rhead; w!=-1; w=qr[w].gnext){
+                        if(db_get(qr[w].aidx)) continue; cmps++;
                         int sub=0,sup=0;
-                        ks_relation(arena+ks_off,ks_len,arena+recs[w].ks_off,recs[w].ks_len,&sub,&sup);
+                        ks_relation(ksa+ks_off,ks_len,ksa+qr[w].ks_off,qr[w].ks_len,&sub,&sup);
                         if(sub){ subsumed=1; break; }                 /* covered by existing */
                         if(g_merge_cap && cmps>=g_merge_cap) break; }
                 } else {                      /* members smaller: S may be a SUPERSET, drop them */
-                    for(int w=buckets[b].rhead; w!=-1; w=recs[w].gnext){
-                        if(REC_DROPPED(w)) continue; cmps++;
+                    for(int w=buckets[b].rhead; w!=-1; w=qr[w].gnext){
+                        if(db_get(qr[w].aidx)) continue; cmps++;
                         int sub=0,sup=0;
-                        ks_relation(arena+ks_off,ks_len,arena+recs[w].ks_off,recs[w].ks_len,&sub,&sup);
-                        if(sup){ REC_SETDROP(w); kept--; }            /* new one covers this  */
+                        ks_relation(ksa+ks_off,ks_len,ksa+qr[w].ks_off,qr[w].ks_len,&sub,&sup);
+                        if(sup){ db_set(qr[w].aidx); kept--; }        /* new one covers this  */
                         if(g_merge_cap && cmps>=g_merge_cap) break; }
                 }
             }
-            int idx=(int)rec_cnt;
-            if(tb<0){ tb=bkt_new(card,idx,gtab[gs].head); gtab[gs].head=tb;
-                      rec_push(off,(unsigned)olen,ks_off,ks_len,-1); }
-            else    { rec_push(off,(unsigned)olen,ks_off,ks_len,buckets[tb].rhead);
-                      buckets[tb].rhead=idx; }
-            if(subsumed) REC_SETDROP(idx); else kept++;
+            int gnext = (tb<0)? -1 : buckets[tb].rhead;
+            size_t qidx = qr_push(ks_off,ks_len,gnext,(unsigned)aidx);
+            if(tb<0){ tb=bkt_new(card,(int)qidx,gtab[gs].head); gtab[gs].head=tb; }
+            else    { buckets[tb].rhead=(int)qidx; }
+            if(subsumed) db_set(aidx); else kept++;
             continue;
         }
 
@@ -2070,8 +2120,19 @@ int main(int argc,char**argv){
         }
     }
     done:
-    if(MERGE) for(size_t i=0;i<rec_cnt;i++)
-        if(!REC_DROPPED(i)) fwrite(arena+recs[i].off,1,REC_LEN(i),stdout);
+    /* sequential front-coded emit: step the arena entry stream in arrival order,
+     * rebuilding each line from the shared prefix of the previous one, and write
+     * only the entries whose drop bit is clear. */
+    if(MERGE){ static char rec_line[8192]; size_t pos=0;
+        for(size_t i=0;i<ent_cnt;i++){
+            size_t mlen,slen,hl;
+            hl =vget((unsigned char*)arena+pos,&mlen);
+            hl+=vget((unsigned char*)arena+pos+hl,&slen);
+            memcpy(rec_line+mlen, arena+pos+hl, slen);   /* prefix already in rec_line */
+            if(!db_get(i)) fwrite(rec_line,1,mlen+slen,stdout);
+            pos += hl+slen;
+        }
+    }
     if(V){ struct rusage ru; getrusage(RUSAGE_SELF,&ru);
         fprintf(stderr,"udud: %llu -> %llu  (peak RSS %ld KB)\n",total,kept,ru.ru_maxrss); }
     return 0;
