@@ -1,4 +1,22 @@
-/* udud v18 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
+/* udud v19 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
+ *
+ * v19.0: subset-merge is no longer O(n^2) on a single hot path. The default
+ *      keyset merge kept, per base path, ONE flat antichain list and rescanned
+ *      it for every new key-set; a path that accumulates K distinct key-sets
+ *      (cache-buster / per-request param spam, a fuzzed endpoint) cost O(K^2) -
+ *      200k such URLs on one path measured ~6 min here, ~1M would be hours.
+ *      Records are now bucketed per (path, cardinality): two key-sets of EQUAL
+ *      size can never be a subset of one another (and an identical pair is
+ *      already collapsed by tab_group), so the same-size bucket - where that
+ *      pathological mass lands - is skipped with no comparison. Singleton /
+ *      uniform-spam thus drops from O(K^2) to O(K). The set of dropped
+ *      (subsumed) records is provably unchanged: if a live superset of S exists
+ *      then no live subset of S can (antichain invariant), so visitation order
+ *      never alters the outcome - output stays byte-identical to v18.9 across
+ *      gau/wayback/vulnweb x all flag combos, peak RSS within noise. New -L N
+ *      (off by default) caps subset comparisons per insert as a safety valve for
+ *      adversarial MULTI-cardinality antichains, trading strict exactness for a
+ *      hard upper bound; without -L every run stays strictly exact.
  *
  * v18.9: memory overhaul, output identical in practice. Peak RSS on a 1.1M-line
  *      wayback corpus drops 61 MB -> 34 MB (-45%); the lead grows with corpus
@@ -583,7 +601,7 @@ static int tab_add(const char *s, size_t n){
  * always < 8 KB so the real length never touches that bit. */
 typedef struct { unsigned off; unsigned len;      /* emitted line in arena   */
                  unsigned ks_off; unsigned ks_len; /* sorted key-set (in sig) */
-                 int gnext; } Rec;                 /* next rec, same base, -1=end */
+                 int gnext; } Rec;                 /* next rec, same (path,card) bucket, -1=end */
 static Rec   *recs = NULL;
 static size_t rec_cap = 0, rec_cnt = 0;
 #define REC_DROP    0x80000000u
@@ -608,9 +626,10 @@ static void tab_group(const char *s, size_t n, int *is_new){
     tab[j].h0=h0; tab[j].h1=h1; tab_cnt++; *is_new=1;
 }
 
-/* ---------- base-path group table (head of each path's record list) ----------
+/* ---------- base-path group table (head of each path's bucket list) ----------
  * keyed on the sig prefix up to and including '?', so every query key-set of
- * one path shares a list; value is the most-recent record index (list head). */
+ * one path shares a list; value (head) is the index of the path's first
+ * cardinality bucket (see Bucket below), -1 when the path has none yet. */
 typedef struct { unsigned long long h0,h1; int head; } GSlot;
 static GSlot *gtab=NULL; static size_t gcap=0,gcnt=0;
 static void gtab_init(size_t c){ gcap=1; while(gcap<c) gcap<<=1;
@@ -628,6 +647,26 @@ static size_t gtab_slot(const char*s,size_t n){
     while(gtab[j].h0|gtab[j].h1){ if(gtab[j].h0==h0&&gtab[j].h1==h1) return j;
         j=(j+1)&(gcap-1); }
     gtab[j].h0=h0; gtab[j].h1=h1; gtab[j].head=-1; gcnt++; return j; }
+
+/* ---------- per-(path,cardinality) buckets ----------------------------------
+ * A path's records are split into buckets, one per distinct key-set size. Two
+ * key-sets of EQUAL cardinality can never be a subset of one another (and an
+ * identical pair is already collapsed by tab_group), so the subset-merge never
+ * compares within a bucket - it only walks buckets of a DIFFERENT size. The
+ * pathological case (one path, K distinct same-size key-sets: cache-buster or
+ * fuzzer param spam) thus drops from O(K^2) to O(K). Records of one bucket are
+ * chained through Rec.gnext; buckets of one path are chained through bnext. */
+typedef struct { unsigned card; int rhead; int bnext; } Bucket;
+static Bucket *buckets=NULL; static size_t bkt_cap=0, bkt_cnt=0;
+static int bkt_new(unsigned card,int rhead,int bnext){
+    if(bkt_cnt>=bkt_cap){ bkt_cap=bkt_cap?bkt_cap*2:4096;
+        if(!(buckets=realloc(buckets,bkt_cap*sizeof(Bucket)))){perror("realloc");exit(1);} }
+    buckets[bkt_cnt].card=card; buckets[bkt_cnt].rhead=rhead; buckets[bkt_cnt].bnext=bnext;
+    return (int)bkt_cnt++; }
+/* -L N: cap subset comparisons per inserted record (0 = off = strictly exact).
+ * Only a safety valve for adversarial multi-cardinality antichains; when it
+ * trips, the record is kept un-merged (output may then differ from a full run). */
+static long g_merge_cap=0;
 
 /* compare two query keys the same way query_keys() sorted them: memcmp over
  * the shared prefix, then shorter token first (so "a" < "ab"). */
@@ -1632,18 +1671,19 @@ int main(int argc,char**argv){
                                        noise-filter + case-fold + wayback +
                                        canonical (X=0 means gate ENABLED).
                                        FI=0: object-ids PRESERVED (v18) */
-    while((c=getopt(argc,argv,"fkpwcWrasxVF"))!=-1){
+    while((c=getopt(argc,argv,"fkpwcWrasxVFL:"))!=-1){
         if(c=='k')K=1; else if(c=='p')P=1;
         else if(c=='a')F=0;                          /* keep ALL assets */
         else if(c=='s')S=1;                          /* case-sensitive path */
         else if(c=='x')X=1;                          /* keep invalid URLs */
         else if(c=='F')FI=1;                         /* fold ids (N/U/H/stem) */
+        else if(c=='L')g_merge_cap=strtol(optarg,NULL,10); /* subset-cmp cap (0=off) */
         else if(c=='W')W=0; else if(c=='r')C=0;      /* opt-outs */
         else if(c=='f'||c=='w'||c=='c'){ /* legacy no-ops (already default) */ }
         else if(c=='V')V=1;
         else { fprintf(stderr,
           "usage: udud [-F fold-ids][-x keep-invalid][-a keep-assets]"
-          "[-s case-sensitive][-k][-p][-W][-r][-V]\n");
+          "[-s case-sensitive][-L N subset-cmp cap][-k][-p][-W][-r][-V]\n");
           return 2; } }
     lo_init();
     /* v15: 64 KB output stdio buffer so fwrite() amortises syscalls. Input
@@ -1899,17 +1939,34 @@ int main(int argc,char**argv){
              * existing records (an antichain of maximal key-sets). */
             size_t ks_off=arena_put(sig+qstart,o-qstart); unsigned ks_len=(unsigned)(o-qstart);
             size_t gs=gtab_slot(sig,qstart);
-            int subsumed=0;
-            for(int w=gtab[gs].head; w!=-1; w=recs[w].gnext){
-                if(REC_DROPPED(w)) continue;
-                int sub=0,sup=0;
-                ks_relation(arena+ks_off,ks_len,arena+recs[w].ks_off,recs[w].ks_len,&sub,&sup);
-                if(sub){ subsumed=1; break; }      /* covered by an existing one */
-                if(sup){ REC_SETDROP(w); kept--; } /* new one covers this one  */
+            /* cardinality = number of unique '&'-joined keys (>=1 here) */
+            unsigned card=1; for(unsigned z=0;z<ks_len;z++) if(arena[ks_off+z]=='&') card++;
+            int subsumed=0, tb=-1; long cmps=0;
+            for(int b=gtab[gs].head; b!=-1; b=buckets[b].bnext){
+                if(buckets[b].card==card){ tb=b; continue; } /* same size: incomparable, skip */
+                if(subsumed) continue;                       /* covered: just keep finding tb */
+                if(g_merge_cap && cmps>=g_merge_cap) continue;
+                if(buckets[b].card>card){     /* members larger: S may be a SUBSET of one */
+                    for(int w=buckets[b].rhead; w!=-1; w=recs[w].gnext){
+                        if(REC_DROPPED(w)) continue; cmps++;
+                        int sub=0,sup=0;
+                        ks_relation(arena+ks_off,ks_len,arena+recs[w].ks_off,recs[w].ks_len,&sub,&sup);
+                        if(sub){ subsumed=1; break; }                 /* covered by existing */
+                        if(g_merge_cap && cmps>=g_merge_cap) break; }
+                } else {                      /* members smaller: S may be a SUPERSET, drop them */
+                    for(int w=buckets[b].rhead; w!=-1; w=recs[w].gnext){
+                        if(REC_DROPPED(w)) continue; cmps++;
+                        int sub=0,sup=0;
+                        ks_relation(arena+ks_off,ks_len,arena+recs[w].ks_off,recs[w].ks_len,&sub,&sup);
+                        if(sup){ REC_SETDROP(w); kept--; }            /* new one covers this  */
+                        if(g_merge_cap && cmps>=g_merge_cap) break; }
+                }
             }
             int idx=(int)rec_cnt;
-            rec_push(off,(unsigned)olen,ks_off,ks_len,gtab[gs].head);
-            gtab[gs].head=idx;
+            if(tb<0){ tb=bkt_new(card,idx,gtab[gs].head); gtab[gs].head=tb;
+                      rec_push(off,(unsigned)olen,ks_off,ks_len,-1); }
+            else    { rec_push(off,(unsigned)olen,ks_off,ks_len,buckets[tb].rhead);
+                      buckets[tb].rhead=idx; }
             if(subsumed) REC_SETDROP(idx); else kept++;
             continue;
         }
