@@ -29,11 +29,7 @@
 
 ## Abstract
 
-Large-scale reconnaissance pipelines generate millions of URLs that must be canonicalized prior to downstream security analysis. Existing URL deduplication tools primarily optimize for reduction ratios and storage efficiency, frequently at the cost of discarding security-relevant endpoints. 
-
-This repository introduces **udud**, a high-performance, security-aware URL canonicalization engine written in C. **udud** is evaluated against industry-standard alternatives such as `urldedupe`, `uro`, `urless`, and `uddup` across four operational metrics: throughput, memory efficiency, attack-surface retention, and false merge rate.
-
-Experimental benchmarks demonstrate that **udud** achieves a peak throughput of **272,000 URLs/sec** while maintaining a constant **14 MB** memory footprint. Unlike aggressive reduction-focused tools, **udud** preserves approximately **84%** of security-relevant endpoint variations and limits the false merge rate to **0.39%**. These results prove that security-aware canonicalization significantly enhances the reliability of downstream vulnerability discovery without introducing substantial infrastructure overhead.
+Large-scale reconnaissance pipelines generate millions of URLs that require canonicalization prior to downstream security analysis. Traditional URL deduplication tools prioritize high reduction ratios and storage efficiency, which introduces an operational trade-off by discarding unique parameter structures and security-relevant endpoints. This repository evaluates **udud**, a C-based, security-aware URL canonicalization engine, against four baseline alternatives: `urldedupe`, `uro`, `urless`, and `uddup`. The evaluation utilizes a standardized multi-domain URL corpus to systematically measure throughput, memory consumption, attack-surface retention, and false merge rates. Experimental benchmarks demonstrate that **udud** sustains a constant memory footprint of **14 MB** and a peak throughput of **272,000 URLs/sec**. In comparative testing, **udud** retains **84%** of security-relevant endpoint variations and limits the false merge rate to **0.39%**, outperforming the evaluated reduction-optimized tools in asset preservation without increasing infrastructural overhead.
 
 ---
 
