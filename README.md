@@ -29,11 +29,11 @@
 
 ## Abstract
 
-Large-scale reconnaissance pipelines generate millions of URLs that must be canonicalized prior to downstream security analysis. However, existing URL deduplication tools primarily optimize for reduction ratios and storage efficiency, frequently at the cost of discarding security-relevant endpoints. 
+Large-scale reconnaissance pipelines generate millions of URLs that must be canonicalized prior to downstream security analysis. Existing URL deduplication tools primarily optimize for reduction ratios and storage efficiency, frequently at the cost of discarding security-relevant endpoints. 
 
-To address this, this repository introduces **udud**, a high-performance, security-aware URL canonicalization engine written in C. We evaluate **udud** against industry-standard alternatives—including `urldedupe`, `uro`, `urless`, and `uddup`—across four operational metrics: throughput, memory efficiency, attack-surface retention, and false merge rate. 
+This repository introduces **udud**, a high-performance, security-aware URL canonicalization engine written in C. **udud** is evaluated against industry-standard alternatives such as `urldedupe`, `uro`, `urless`, and `uddup` across four operational metrics: throughput, memory efficiency, attack-surface retention, and false merge rate.
 
-Experimental benchmarks demonstrate that **udud** achieves a peak throughput of **272,000 URLs/sec** while maintaining a minimal, constant memory footprint of **14 MB**. Crucially, unlike aggressive reduction-focused tools, **udud** preserves approximately **84%** of security-relevant endpoint variations and minimizes the false merge rate to just **0.39%**. These findings demonstrate that security-aware canonicalization significantly enhances the reliability of downstream vulnerability discovery without introducing substantial infrastructure overhead.
+Experimental benchmarks demonstrate that **udud** achieves a peak throughput of **272,000 URLs/sec** while maintaining a constant **14 MB** memory footprint. Unlike aggressive reduction-focused tools, **udud** preserves approximately **84%** of security-relevant endpoint variations and limits the false merge rate to **0.39%**. These results prove that security-aware canonicalization significantly enhances the reliability of downstream vulnerability discovery without introducing substantial infrastructure overhead.
 
 ---
 
