@@ -13,6 +13,7 @@
 </p>
 
 <p align="center">
+  <a href="#Comparison">Comparison</a> ·
   <a href="#installation">Installation</a> ·
   <a href="#usage">Usage</a> ·
   <a href="#examples">Examples</a> ·
@@ -217,7 +218,7 @@ These measurements validate that executing security-preserving URL canonicalizat
 
 [45] R. Fielding, M. Nottingham, and J. Reschke, "Hypertext Transfer Protocol (HTTP/1.1): Semantics and Content," Internet Engineering Task Force (IETF), RFC 7231, June 2014.
 
-# Comparison results
+# Comparison
 | Raw Input URL | uro | urless | urldedupe | uddup | udud |
 |---|---|---|---|---|---|
 | `http://example.com/page.php?id=1` | 🟢 | 🟢 | 🟢 | 🟢 | 🔴 |
