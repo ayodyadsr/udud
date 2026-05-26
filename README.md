@@ -80,14 +80,25 @@ The evaluation dataset was constructed utilizing a large-scale multi-domain corp
 
 ## 3.1 Performance and Resource Analysis
 
-The complete performance metrics across all evaluated URL deduplication engines are detailed below:
+The complete performance metrics across all evaluated URL deduplication engines are detailed below. Two corpora are used: the **Wayback capture** (781,398 URLs, real recon target) is the headline for cost and reach metrics, and the **controlled corpus** (45,410 URLs, every endpoint hand-labeled) is the only one where false merges can be counted exactly.
+
+**Input → Output (raw URL counts after dedup):**
+
+| Corpus (Input URLs) | `udud` | `urldedupe` | `uro` | `urless` | `uddup` |
+|---|---:|---:|---:|---:|---:|
+| Wayback capture (781,398) | **129,436** | 293,420 | 78,470 | 74,737 | DNF past ~50k URLs |
+| Controlled corpus (45,410) | **15,269** | 25,415 | 5,310 | 5,311 | 20,322 |
+
+How to read: on the Wayback capture, udud took 781,398 input URLs and emitted 129,436 (kept 16.6%, dropped 83.4%). `uro` and `urless` emit fewer lines, but they get there by folding away whole endpoint classes (see Attack Surface Retained below); `urldedupe` emits 2.3x udud's count because it barely deduplicates (passthrough).
+
+**Performance and quality metrics on the same runs:**
 
 | Evaluation Metric | `udud` | `urldedupe` | `uro` | `urless` | `uddup` |
 |---|---:|---:|---:|---:|---:|
 | Throughput (URLs/sec) | **260,000** | 159,000 | 45,000 | 10,000 | DNF past ~50k URLs |
 | Peak Memory Footprint | **14 MB (Flat)** | 336 MB | 35 MB | 45 MB | DNF past ~50k URLs |
-| Attack Surface Retained | **~84%** | 100% (passthrough) | ~63% | ~67% | DNF past ~50k URLs |
-| False Merge Rate | **0%** | 0% (passthrough) | 16.7% | 8.3% | 14.2% |
+| Attack Surface Retained (Wayback) | **~84%** | 100% (passthrough) | ~63% | ~67% | DNF past ~50k URLs |
+| False Merge Rate (controlled) | **0%** | 0% (passthrough) | 16.7% | 8.3% | 14.2% |
 
 ---
 
