@@ -142,7 +142,7 @@ These findings suggest that security-aware URL canonicalization can substantiall
 
 Future work may include evaluating canonicalization behavior across API-specific schemas, graph-based endpoint relationships, and adaptive security-preserving normalization strategies.
 
-## References
+# References
 
 [1] Z. Durumeric, E. Wustrow, and J. A. Halderman, "ZMap: Fast Internet-wide scanning and its applications," in *Proceedings of the ACM Conference on Internet Measurement Conference (IMC)*, 2013, pp. 47–60.
 
@@ -150,6 +150,7 @@ Future work may include evaluating canonicalization behavior across API-specific
 
 [3] J. Bau, E. Bursztein, D. Gupta, and J. Mitchell, "Measuring the security of web applications," in *Proceedings of the IEEE Symposium on Security and Privacy (S&P)*, 2010, pp. 308–322.
 
+# Comparison results
 | Raw Input URL | uro | urless | urldedupe | uddup | udud |
 |---|---|---|---|---|---|
 | `http://example.com/page.php?id=1` | 🟢 | 🟢 | 🟢 | 🟢 | 🔴 |
