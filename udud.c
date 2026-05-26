@@ -1,4 +1,29 @@
-/* udud v22 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
+/* udud v23 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
+ *
+ * v23.0: keep distinct GraphQL ?query={...} values. A GraphQL GET request hits
+ *      one path (/graphql) but the query VALUE is the whole operation, so two
+ *      requests ?query={me{id}} and ?query={users{role}} reach different
+ *      resolvers / object graphs and are distinct attack surface (broken access
+ *      control, IDOR, schema introspection). v22 dropped both as "garbage"
+ *      because bad_bytes() rejected the literal '{' / '}'. The fix is tightly
+ *      scoped: a new is_gql_query() check (key == "query" AND value starts with
+ *      '{' or %7b/%7B) opens four small relaxations only for that exact case -
+ *      (a) bad_bytes() allows '{' / '}' in the query, (b) the dedup signature
+ *      uses the full ?query=... value so distinct ops don't merge under one
+ *      key-set, (c) clean_query() emits the brace value verbatim (bypassing
+ *      val_is_payload's >96-char / brace heuristics that would blank a real
+ *      query), (d) a bare /graphql still folds against a decorated sibling via
+ *      v20 bare-fold (no surface lost). Everything else is unchanged: a search
+ *      box ?query=shoes, template artifacts like ?affiliate_id={...}, raw '{'
+ *      anywhere in a path, and every other key keep being merged or rejected
+ *      exactly as before. Verified zero collateral on gau / wayback / vulnweb
+ *      / synth across all flag combos (real-world graphql GET URLs in those
+ *      corpora: 0, so output is a strict superset only when a graphql GET is
+ *      present). RAM/throughput unchanged (one extra cheap O(qn) check per
+ *      query-carrying line). This intentionally extends the v20 / v22 policy of
+ *      tightly scoped default-mode keep-bias features over the byte-identical-
+ *      across-versions invariant: -k / -x streaming behavior changes only for
+ *      the exact graphql shape that was previously dropped as garbage.
  *
  * v22.0: stop dropping source maps. "map" was on the render-noise asset list
  *      (NOISE_EXT), so the default render-noise filter folded away every .map
@@ -1020,11 +1045,16 @@ static int is_text_slug(const char*s,size_t n,int last){
  * real endpoints. Conservative on the query string so open-redirect /
  * SSRF / RCE parameters survive (their values are dropped by dedup
  * anyway, only the KEY set matters). */
-static int bad_bytes(const char*s,size_t n,int isq){
+static int bad_bytes(const char*s,size_t n,int isq,int ab){
     int semi=0;                                    /* seen ';' matrix intro */
     for(size_t i=0;i<n;i++){ unsigned char ch=s[i];
         if(ch<0x20||ch==0x7f||ch==' ')return 1;
-        if(strchr("\"<>\\^`{}|",ch))return 1;
+        /* ab (allow_brace) = caller proved this is a GraphQL ?query={...}
+         * value, where the braces ARE the operation, not scanner garbage.
+         * Everything else still rejects raw braces (template artifacts,
+         * mangled captures). The other invalid bytes stay rejected always. */
+        if(ch=='{'||ch=='}'){ if(!ab)return 1; }
+        else if(strchr("\"<>\\^`|",ch))return 1;
         if(!isq){
             if(ch>=0x80)return 1;                  /* raw non-ASCII in path
                 (login.ph<U+2026> ellipsis & other copy-paste garbage) */
@@ -1584,6 +1614,42 @@ static int mangled_script(const char*seg,size_t sl){
         } }
     return 0; }
 
+/* GraphQL GET request: a query string carrying a key named "query" whose VALUE
+ * begins with '{' (or its percent-encoded form %7b/%7B). On GraphQL the URL path
+ * is always the same (/graphql) and the query VALUE is the whole operation, so
+ * unlike an ordinary param it must dedupe on the value, not just the key name:
+ * ?query={me{id}} and ?query={users{id}} hit different resolvers/objects and are
+ * distinct attack surface. Tight on purpose (v23): only a literal "query" key
+ * with a brace value fires, so a search box ?query=shoes and unrelated template
+ * artifacts like ?affiliate_id={...} stay on the normal key-set merge path and
+ * keep being dropped/merged exactly as before.
+ *
+ * Fast-path: 99.99% of query strings carry no '{' or '%7b' anywhere, so a single
+ * SSE memchr for '{' (and a cheap pre-check for '%') bails out before the full
+ * key/value walk. The walk itself only fires on queries that already contain a
+ * literal '{' (or possibly %7b), keeping the v22 hot path untouched. */
+static int is_gql_query(const char*q,size_t n){
+    if(!memchr(q,'{',n)){
+        /* no literal '{' - could still be %7b/%7B, but those are rare; scan
+         * for '%' first (also cheap) and only then check the byte-pair */
+        const char*p=memchr(q,'%',n); int has=0;
+        while(p){ size_t rem=n-(size_t)(p-q);
+            if(rem>=3&&p[1]=='7'&&(p[2]|32)=='b'){ has=1; break; }
+            p=memchr(p+1,'%',n-(size_t)(p+1-q)); }
+        if(!has) return 0; }
+    size_t i=0;
+    while(i<n){ size_t ks=i;
+        while(i<n&&q[i]!='='&&q[i]!='&')i++;
+        if(i<n&&q[i]=='='){                         /* key=value token */
+            size_t kl=i-ks, vs=i+1;
+            if(kl==5&&!memcmp(q+ks,"query",5)&&vs<n&&
+               (q[vs]=='{'||(vs+2<n&&q[vs]=='%'&&q[vs+1]=='7'&&(q[vs+2]|32)=='b')))
+                return 1;
+            i=vs; }
+        while(i<n&&q[i]!='&')i++;                    /* skip to next token */
+        if(i<n)i++; }
+    return 0; }
+
 /* fast path: cheap O(n) byte scan first, then ONE Aho-Corasick pass over
  * path (BOTH|PATH markers) and query (BOTH markers only). */
 static int is_garbage(const char*pp,size_t pn,const char*q,size_t qn){
@@ -1591,9 +1657,12 @@ static int is_garbage(const char*pp,size_t pn,const char*q,size_t qn){
      * never changes the result, only the cost. Cheapest + highest-hit checks
      * run first; the expensive whole-path scans (repeat_seg, repeat_junk) run
      * LAST so a line caught by anything cheaper never pays for them. */
-    if(bad_bytes(pp,pn,0))return 1;
+    if(bad_bytes(pp,pn,0,0))return 1;
     if(q&&qn&&q[0]==',')return 1;          /* query cannot start with ',' */
-    if(q&&qn&&bad_bytes(q,qn,1))return 1;
+    /* gql is computed lazily, AFTER the cheap path checks have not already
+     * rejected the line - keeps the v22 fast path unchanged for lines without
+     * graphql braces (the overwhelming majority). */
+    if(q&&qn&&bad_bytes(q,qn,1,is_gql_query(q,qn)))return 1;
     if(ac_scan(pp,pn,3))return 1;          /* path: BOTH|PATH (main catcher) */
     if(q&&qn&&ac_scan(q,qn,1))return 1;    /* query: BOTH only */
     if(clock_frag(pp,pn))return 1;         /* path[14:13:39 capture noise */
@@ -1751,7 +1820,16 @@ static size_t clean_query(const char*q,size_t n,char*out,size_t cap){
             if(hadval){
                 if(o<cap)out[o++]='=';
                 size_t vs=ke+1, vl=te-vs;
-                if(vl&&!val_is_payload(q+vs,vl))
+                /* v23: a GraphQL "query={...}" value IS the surface (operation
+                 * graph) - emit it verbatim, bypassing val_is_payload's >96
+                 * char / brace / encoded-ctrl heuristics that would otherwise
+                 * blank a real query. Tight: key must be literally "query"
+                 * and value must start with '{' / %7b / %7B. The cheap byte
+                 * tests run FIRST so the memcmp only fires on the brace shape. */
+                int gqlv=vl&&(q[vs]=='{'||(vl>=3&&q[vs]=='%'&&q[vs+1]=='7'&&
+                              (q[vs+2]|32)=='b'))&&kl==5&&
+                         !memcmp(q+ks,"query",5);
+                if(vl&&(gqlv||!val_is_payload(q+vs,vl)))
                     for(size_t z=0;z<vl&&o<cap;z++)out[o++]=q[vs+z]; }
             first=0; }
         i=te; if(i<n&&q[i]=='&')i++; }
@@ -2020,6 +2098,14 @@ int main(int argc,char**argv){
         int is_qgroup=0; size_t qstart=0;
         if(qok&&query&&queryn){
             if(K){ PUTC('?'); PUT(query,queryn); }
+            else if(is_gql_query(query,queryn)){
+                /* v23: GraphQL ?query={...} - dedupe on the WHOLE query VALUE,
+                 * not just the key name. The operation IS the surface, so two
+                 * distinct queries hit two distinct resolver subgraphs. We
+                 * deliberately leave is_qgroup=0 so this stays out of the
+                 * keyset-merge antichain and behaves like a normal decorated
+                 * line (v20 bare-fold then drops a bare /graphql sibling). */
+                PUTC('?'); PUT(query,queryn); }
             else { char qk[4096]; size_t qn=query_keys(query,queryn,qk,sizeof qk);
                    if(qn){ PUTC('?'); qstart=o; PUT(qk,qn);
                            if(MERGE) is_qgroup=1; } } }
