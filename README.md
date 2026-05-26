@@ -22,6 +22,7 @@
   <a href="#installation">Installation</a> ·
   <a href="#usage">Usage</a> ·
   <a href="#examples">Examples</a> ·
+  <a href="#examples">License</a> ·
 </p>
 
 ---
