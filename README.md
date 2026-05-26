@@ -17,8 +17,6 @@
   <a href="#installation">Installation</a> ·
   <a href="#usage">Usage</a> ·
   <a href="#examples">Examples</a> ·
-  <a href="#benchmark">Benchmark</a> ·
-  <a href="#how-it-works">How it works</a>
 </p>
 
 ---
