@@ -317,7 +317,7 @@ These measurements validate that executing security-preserving URL canonicalizat
 | `http://cdn.example.com/assets/admin.js.map` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
 | `http://cdn.example.com/assets/mobile.apk` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
 | `http://cdn.example.com/assets/mobile.ipa` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
-| `http://api.example.com/graphql` | 🔴 | 🔴 | 🟢 | 🟢 | 🟢 |
+| `http://api.example.com/graphql` | 🔴 | 🔴 | 🟢 | 🟢 | 🔴 |
 | `http://api.example.com/graphql?query={me{id,email}}` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
 | `http://api.example.com/graphql?query={users{id,role}}` | 🔴 | 🔴 | 🔴 | 🟢 | 🟢 |
 | `http://api.example.com/graphiql` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
