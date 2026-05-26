@@ -8,7 +8,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/language-C-00599C.svg">
   <img src="https://img.shields.io/badge/dependencies-none-success.svg">
-  <img src="https://img.shields.io/badge/memory-14MB%20%2F%20781k%20URLs-success.svg">
+  <img src="https://img.shields.io/badge/memory-22.6MB%20%2F%20780k%20URLs-success.svg">
   <a href="https://github.com/ayodyadsr/udud-benchmark"><img src="https://img.shields.io/badge/benchmark-results-orange.svg"></a>
 </p>
 
@@ -25,7 +25,7 @@
 
 ## Abstract
 
-Large-scale reconnaissance pipelines generate millions of URLs that require canonicalization prior to downstream security analysis [1], [6], [27], [28]. Traditional URL deduplication tools prioritize high reduction ratios and storage efficiency, which introduces an operational trade-off by discarding unique parameter structures and security-relevant endpoints [2], [8], [29]. This repository evaluates **udud**, a C-based, security-aware URL canonicalization engine, against four industry baselines, including `urldedupe`, `uro`, `urless`, and `uddup`. The evaluation utilizes a standardized multi-domain URL corpus based on structural divergence and parser ambiguity models [10], [42] to systematically measure throughput, memory consumption, attack-surface retention, and false merge rates [3], [12]. Experimental benchmarks demonstrate that **udud** sustains a constant memory footprint of **14 MB** through fixed-size Lookahead mmap buffers [16], [30] and a peak throughput of **260,000 URLs/sec** on the 781,398-URL headline capture (sustained up to 273k URLs/sec on replication-scale runs to 6.25M URLs). In comparative testing, **udud** retains **84%** of security-relevant endpoint variations and achieves a **0% false merge rate** on the controlled known-answer corpus, outperforming reduction-optimized tools in asset preservation without increasing infrastructural overhead [20], [40].
+Large-scale reconnaissance pipelines generate millions of URLs that require canonicalization prior to downstream security analysis [1], [6], [27], [28]. Traditional URL deduplication tools prioritize high reduction ratios and storage efficiency, which introduces an operational trade-off by discarding unique parameter structures and security-relevant endpoints [2], [8], [29]. This repository evaluates **udud**, a C-based, security-aware URL canonicalization engine, against four industry baselines, including `urldedupe`, `uro`, `urless`, and `uddup`. The evaluation utilizes a single labeled corpus (`D_unified.full`, 780,200 URLs across 55,920 canonical endpoint groups whose correct groupings are recorded in ground truth) so that throughput, memory consumption, attack-surface retention, and false merge rate are all measured on the same input [3], [10], [12], [42]. Experimental benchmarks demonstrate that **udud** sustains a peak memory footprint of **22.6 MB** through fixed-size lookahead mmap buffers [16], [30] and a peak throughput of **451,000 URLs/sec**, finishing the 780,200-URL corpus in 1.73 s on a single core. In comparative testing on the same input, **udud** retains **100%** of canonical endpoint groups and achieves a **0% false merge rate**, outperforming reduction-optimized tools in asset preservation without increasing infrastructural overhead [20], [40].
 
 ---
 
@@ -80,40 +80,39 @@ The evaluation dataset was constructed utilizing a large-scale multi-domain corp
 
 ## 3.1 Performance and Resource Analysis
 
-The complete performance metrics across all evaluated URL deduplication engines are detailed below. Two corpora are used: the **Wayback capture** (781,398 URLs, real recon target) is the headline for cost and reach metrics, and the **controlled corpus** (45,410 URLs, every endpoint hand-labeled) is the only one where false merges can be counted exactly.
+The complete performance metrics across all evaluated URL deduplication engines are detailed below. A single labeled corpus is used: `D_unified.full` carries 780,200 URLs across 55,920 canonical endpoint groups whose correct groupings are recorded in ground truth. Every metric in this section, including the false merge rate, is measured on that same input.
 
 **Input → Output (raw URL counts after dedup):**
 
 | Corpus (Input URLs) | `udud` | `urldedupe` | `uro` | `urless` | `uddup` |
 |---|---:|---:|---:|---:|---:|
-| Wayback capture (781,398) | **129,436** | 293,420 | 78,470 | 74,737 | DNF past ~50k URLs |
-| Controlled corpus (45,410) | **15,269** | 25,415 | 5,310 | 5,311 | 20,322 |
+| `D_unified.full` (780,200) | **115,764** | 380,650 | 64,667 | 64,138 | DNF (>600 s) |
 
-How to read: on the Wayback capture, udud took 781,398 input URLs and emitted 129,436 (kept 16.6%, dropped 83.4%). `uro` and `urless` emit fewer lines, but they get there by folding away whole endpoint classes (see Attack Surface Retained below); `urldedupe` emits 2.3x udud's count because it barely deduplicates (passthrough).
+How to read: udud took 780,200 input URLs and emitted 115,764 (kept 14.8%, dropped 85.2%). `uro` and `urless` emit fewer lines, but they get there by folding away whole endpoint classes (see Attack Surface Retained below); `urldedupe` emits 3.3x udud's count because it barely deduplicates (passthrough).
 
 **Performance and quality metrics on the same runs:**
 
 | Evaluation Metric | `udud` | `urldedupe` | `uro` | `urless` | `uddup` |
 |---|---:|---:|---:|---:|---:|
-| Completion Time (Wayback 781,398 URLs) | **~3.0 sec** | ~4.9 sec | ~17.5 sec | ~78 sec | DNF past ~50k URLs |
-| Throughput (URLs/sec) | **260,000** | 159,000 | 45,000 | 10,000 | DNF past ~50k URLs |
-| Peak Memory Footprint | **14 MB (Flat)** | 336 MB | 35 MB | 45 MB | DNF past ~50k URLs |
-| Attack Surface Retained (Wayback) | **~84%** | 100% (passthrough) | ~63% | ~67% | DNF past ~50k URLs |
-| False Merge Rate (controlled) | **0%** | 0% (passthrough) | 16.7% | 8.3% | 14.2% |
+| Completion Time | **1.73 sec** | 2.27 sec | 7.36 sec | 8.83 sec | DNF (>600 s) |
+| Throughput (URLs/sec) | **451,000** | 343,000 | 106,000 | 88,000 | DNF |
+| Peak Memory Footprint | **22.6 MB** | 193.8 MB | 27.6 MB | 40.5 MB | DNF |
+| Attack Surface Retained | **100%** | 100% (passthrough) | 97.77% | 96.82% | DNF |
+| False Merge Rate | **0%** | 0% (passthrough) | 2.23% | 3.18% | DNF |
 
 ---
 
 ## 3.2 Memory Scalability
 
-During execution against workloads exceeding 6.25 million discrete items, `udud` maintained a rigid, constant memory footprint of approximately 14 MB. This flat-line allocation indicates that the underlying engine optimizes heap utilization based on fixed-size lookahead buffers and arena allocation strategies [16], [30], allowing memory consumption to scale relative to active parameter state trees rather than raw input block sizes [17], [31]. Conversely, competitive engines demonstrated linear memory expansion patterns or total runtime instability under identical high-volume data streams due to unoptimized heap allocation patterns [18], [19], [32], [33].
+On the 780,200-URL `D_unified.full` corpus, `udud` held peak resident memory at 22.6 MB, the lowest among the tools that completed the run. The next-smallest peak (`uro`, 27.6 MB) is 1.22x heavier and reaches it by folding away whole endpoint classes; `urldedupe` reaches 193.8 MB by keeping a per-URL hash table for the near-passthrough output, and `uddup` does not complete the run at all because its working set grows with the square of the input. The underlying engine optimizes heap utilization through fixed-size lookahead buffers and arena allocation strategies [16], [30], so memory consumption scales with active parameter state trees rather than raw input block size [17], [31]. Competitive engines demonstrated linear or super-linear memory expansion patterns under the same input due to unoptimized heap allocation [18], [19], [32], [33].
 
 ---
 
 ## 3.3 Security Preservation Analysis
 
-The aggressive, rule-based text normalization logic used within `uro` and `urless` relies on traditional Locality-Sensitive Hashing (LSH) and MinHash similarity estimation [15], [29]. This approach frequently misidentified custom parameter routing flags and object arrays as redundant keys [7]. This behavior collapsed unique application entry points, reducing total attack-surface retention to approximately 66%. 
+The aggressive, rule-based text normalization logic used within `uro` and `urless` relies on traditional Locality-Sensitive Hashing (LSH) and MinHash similarity estimation [15], [29]. This approach frequently misidentified custom parameter routing flags and object arrays as redundant keys [7]. On `D_unified.full` this behavior collapsed whole endpoint classes: `uro` destroyed every JSESSIONID group, every title-slug group, and every UUID group (1,248 canonical groups removed, 2.23% false merge rate), and `urless` destroyed every JSESSIONID group and every title-slug group (1,777 canonical groups removed, 3.18% false merge rate).
 
-The C-based architecture of `udud` demonstrated a high resistance to destructive merging errors. It retained approximately 84% of verified unique endpoints while restricting the total false merge rate to 0%. Detailed inspection of the preserved outputs confirmed the retention of state-specific endpoints and object-ID vectors, which are essential inputs for downstream automated access control validation systems and dynamic logical verification workflows [4], [22], [34], [43].
+The C-based architecture of `udud` demonstrated a high resistance to destructive merging errors. It retained 100% of the 55,920 canonical endpoint groups in the corpus while restricting the total false merge rate to 0%. Detailed inspection of the preserved outputs confirmed the retention of state-specific endpoints and object-ID vectors, which are essential inputs for downstream automated access control validation systems and dynamic logical verification workflows [4], [22], [34], [43].
 
 ---
 
@@ -129,10 +128,10 @@ The empirical data gathered during this study reveals that optimizing URL canoni
 
 This study executed a comparative performance evaluation between `udud` and established URL deduplication frameworks used within active reconnaissance systems. Experimental benchmarks confirm that `udud` yields:
 
-- The highest throughput at 260,000 URLs/sec on the 781,398-URL headline capture
-- A constant, low-overhead memory architecture of 14 MB
-- Enhanced security attack-surface preservation of approximately 84%
-- A 0% false merge error rate on the controlled known-answer corpus
+- The highest throughput at 451,000 URLs/sec on the 780,200-URL `D_unified.full` corpus, finishing in 1.73 s on a single core
+- The lowest peak memory footprint at 22.6 MB on the same run
+- 100% retention of all 55,920 canonical endpoint groups in the corpus
+- A 0% false merge rate on the same labeled input
 
 These measurements validate that executing security-preserving URL canonicalization does not require sacrificing pipeline speed or increasing hardware costs. Future research directions will explore extending the engine's compilation parsing rules to support adaptive graph-based microservice boundaries [25], [26], [41], nested API endpoint routing protocols, and dynamic automated token discovery schema [23], [44].
 
@@ -239,10 +238,10 @@ These measurements validate that executing security-preserving URL canonicalizat
 >
 > It is **not** the benchmark.
 >
-> Full reproducible benchmark, 781,398-URL Wayback capture plus a
-> 45,410-URL known-answer corpus across twelve attack classes, with peak
-> RSS, throughput, false merge rate, per-class PRF, and every CSV behind
-> every claim, lives in a separate repo:
+> Full reproducible benchmark on a single 780,200-URL labeled corpus
+> (`D_unified.full`, 55,920 canonical endpoint groups recorded in ground
+> truth), with peak RSS, throughput, completion time, false merge rate,
+> per-class PRF, and every CSV behind every claim, lives in a separate repo:
 >
 > **[github.com/ayodyadsr/udud-benchmark](https://github.com/ayodyadsr/udud-benchmark)**
 
