@@ -82,12 +82,12 @@ The evaluation dataset was constructed utilizing a large-scale multi-domain corp
 
 The complete performance metrics across all evaluated URL deduplication engines are detailed below:
 
-| Evaluation Metric | `udud` | `urldedupe` | `uro` / `urless` | `uddup` |
-|---|---:|---:|---:|---:|
-| Throughput (URLs/sec) | **260,000** | 159,000 | 10,000 – 45,000 | Fails past 50k |
-| Peak Memory Footprint | **14 MB (Flat)** | 336 MB | Variable / Scaled | Unstable |
-| Attack Surface Retained | **~84%** | Moderate | ~66% (High data loss) | Low |
-| False Merge Rate | **0.39%** | High | Critical | High |
+| Evaluation Metric | `udud` | `urldedupe` | `uro` | `urless` | `uddup` |
+|---|---:|---:|---:|---:|---:|
+| Throughput (URLs/sec) | **260,000** | 159,000 | 45,000 | 10,000 | Fails past 50k |
+| Peak Memory Footprint | **14 MB (Flat)** | 336 MB | 35 MB | 45 MB | Unstable |
+| Attack Surface Retained | **~84%** | 100% (passthrough) | ~63% | ~67% | Low |
+| False Merge Rate | **0.39%** | 0% (passthrough) | 16.9% | 8.6% | High |
 
 ---
 
