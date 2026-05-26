@@ -13,16 +13,11 @@
 </p>
 
 <p align="center">
-  <a href="#features">Abstract</a> ·
-  <a href="#features">Introduction</a> ·
-  <a href="#features">Methodology</a> ·
-  <a href="#features">Results</a> ·
-  <a href="#features">Discussion</a> ·
-  <a href="#features">Conclusion</a> ·
   <a href="#installation">Installation</a> ·
   <a href="#usage">Usage</a> ·
   <a href="#examples">Examples</a> ·
-  <a href="#examples">License</a> ·
+  <a href="#sponsor">Sponsor</a> ·
+  <a href="#license">License</a> ·
 </p>
 
 ---
