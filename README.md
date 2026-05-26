@@ -45,7 +45,6 @@ capacity, throughput and memory, in the same run:
   urless fold away roughly a third of the endpoint classes; udud keeps ~84% on
   this capture), including the object-ID endpoints where IDOR/BOLA bugs live
 
-```markdown
 | Raw Input URL | uro | urless | urldedupe | uddup | udud |
 |---|---|---|---|---|---|
 | `http://example.com/page.php?id=1` | 🟢 | 🟢 | 🟢 | 🟢 | 🔴 |
@@ -147,7 +146,6 @@ capacity, throughput and memory, in the same run:
 | `http://api.example.com/swagger.json` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
 | `http://api.example.com/openapi.json` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
 | `http://api.example.com/v2/swagger.yaml` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
-```
 
 ## Installation
 
