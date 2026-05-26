@@ -84,10 +84,10 @@ The complete performance metrics across all evaluated URL deduplication engines 
 
 | Evaluation Metric | `udud` | `urldedupe` | `uro` | `urless` | `uddup` |
 |---|---:|---:|---:|---:|---:|
-| Throughput (URLs/sec) | **260,000** | 159,000 | 45,000 | 10,000 | Fails past 50k |
-| Peak Memory Footprint | **14 MB (Flat)** | 336 MB | 35 MB | 45 MB | Unstable |
-| Attack Surface Retained | **~84%** | 100% (passthrough) | ~63% | ~67% | Low |
-| False Merge Rate | **0.39%** | 0% (passthrough) | 16.9% | 8.6% | High |
+| Throughput (URLs/sec) | **260,000** | 159,000 | 45,000 | 10,000 | DNF past ~50k URLs |
+| Peak Memory Footprint | **14 MB (Flat)** | 336 MB | 35 MB | 45 MB | DNF past ~50k URLs |
+| Attack Surface Retained | **~84%** | 100% (passthrough) | ~63% | ~67% | DNF past ~50k URLs |
+| False Merge Rate | **0.39%** | 0% (passthrough) | 16.9% | 8.6% | 14.3% |
 
 ---
 
