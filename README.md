@@ -388,13 +388,13 @@ cat urls.txt | udud           # /user/41 and /user/42 both survive
 cat urls.txt | udud -F        # they collapse to one endpoint witness
 ```
 
-## Sponsor
+## Support
 
 <div align="center">
 
 <a href="https://github.com/sponsors/ayodyadsr"><img src="https://img.shields.io/badge/Sponsor%20ayodyadsr-❤️-EA4AAA?style=for-the-badge&logo=github-sponsors&logoColor=white" alt="Sponsor ayodyadsr"></a>
 
-One C file, one maintainer, no dependencies. Sponsorship pays for the engineering time behind each release (v20 bare-fold, v22 sourcemap retention, v23 GraphQL value-keep, and whatever ships next).
+If you would like to support this project, you can become a sponsor here:
 
 **[github.com/sponsors/ayodyadsr](https://github.com/sponsors/ayodyadsr)**
 
