@@ -25,7 +25,7 @@
 
 ## Abstract
 
-Large-scale reconnaissance pipelines generate millions of URLs that require canonicalization prior to downstream security analysis [1], [6], [27], [28]. Traditional URL deduplication tools prioritize high reduction ratios and storage efficiency, which introduces an operational trade-off by discarding unique parameter structures and security-relevant endpoints [2], [8], [29]. This repository evaluates **udud**, a C-based, security-aware URL canonicalization engine, against four industry baselines, including `urldedupe`, `uro`, `urless`, and `uddup`. The evaluation utilizes a standardized multi-domain URL corpus based on structural divergence and parser ambiguity models [10], [42] to systematically measure throughput, memory consumption, attack-surface retention, and false merge rates [3], [12]. Experimental benchmarks demonstrate that **udud** sustains a constant memory footprint of **14 MB** through fixed-size Lookahead mmap buffers [16], [30] and a peak throughput of **272,000 URLs/sec**. In comparative testing, **udud** retains **84%** of security-relevant endpoint variations and limits the false merge rate to **0.39%**, outperforming reduction-optimized tools in asset preservation without increasing infrastructural overhead [20], [40].
+Large-scale reconnaissance pipelines generate millions of URLs that require canonicalization prior to downstream security analysis [1], [6], [27], [28]. Traditional URL deduplication tools prioritize high reduction ratios and storage efficiency, which introduces an operational trade-off by discarding unique parameter structures and security-relevant endpoints [2], [8], [29]. This repository evaluates **udud**, a C-based, security-aware URL canonicalization engine, against four industry baselines, including `urldedupe`, `uro`, `urless`, and `uddup`. The evaluation utilizes a standardized multi-domain URL corpus based on structural divergence and parser ambiguity models [10], [42] to systematically measure throughput, memory consumption, attack-surface retention, and false merge rates [3], [12]. Experimental benchmarks demonstrate that **udud** sustains a constant memory footprint of **14 MB** through fixed-size Lookahead mmap buffers [16], [30] and a peak throughput of **260,000 URLs/sec** on the 781,398-URL headline capture (sustained up to 273k URLs/sec on replication-scale runs to 6.25M URLs). In comparative testing, **udud** retains **84%** of security-relevant endpoint variations and limits the false merge rate to **0.39%**, outperforming reduction-optimized tools in asset preservation without increasing infrastructural overhead [20], [40].
 
 ---
 
@@ -84,7 +84,7 @@ The complete performance metrics across all evaluated URL deduplication engines 
 
 | Evaluation Metric | `udud` | `urldedupe` | `uro` / `urless` | `uddup` |
 |---|---:|---:|---:|---:|
-| Throughput (URLs/sec) | **272,000** | 160,000 | 10,000 – 45,000 | Fails past 50k |
+| Throughput (URLs/sec) | **260,000** | 159,000 | 10,000 – 45,000 | Fails past 50k |
 | Peak Memory Footprint | **14 MB (Flat)** | 336 MB | Variable / Scaled | Unstable |
 | Attack Surface Retained | **~84%** | Moderate | ~66% (High data loss) | Low |
 | False Merge Rate | **0.39%** | High | Critical | High |
@@ -117,7 +117,7 @@ The empirical data gathered during this study reveals that optimizing URL canoni
 
 This study executed a comparative performance evaluation between `udud` and established URL deduplication frameworks used within active reconnaissance systems. Experimental benchmarks confirm that `udud` yields:
 
-- The highest throughput at 272,000 URLs/sec
+- The highest throughput at 260,000 URLs/sec on the 781,398-URL headline capture
 - A constant, low-overhead memory architecture of 14 MB
 - Enhanced security attack-surface preservation of approximately 84%
 - The lowest observed false merge error rate of 0.39%
@@ -219,6 +219,21 @@ These measurements validate that executing security-preserving URL canonicalizat
 [45] R. Fielding, M. Nottingham, and J. Reschke, "Hypertext Transfer Protocol (HTTP/1.1): Semantics and Content," Internet Engineering Task Force (IETF), RFC 7231, June 2014.
 
 # Comparison
+
+> **About this table.**
+> The 99-row sample below shows, at a glance, the kinds of differences a
+> recon engineer will notice between dedupers (object IDs, content-section
+> templating, query-keyset merge, bare-folding).
+>
+> It is **not** the benchmark.
+>
+> Full reproducible benchmark, 781,398-URL Wayback capture plus a
+> 45,410-URL known-answer corpus across twelve attack classes, with peak
+> RSS, throughput, false merge rate, per-class PRF, and every CSV behind
+> every claim, lives in a separate repo:
+>
+> **[github.com/ayodyadsr/udud-benchmark](https://github.com/ayodyadsr/udud-benchmark)**
+
 | Raw Input URL | uro | urless | urldedupe | uddup | udud |
 |---|---|---|---|---|---|
 | `http://example.com/page.php?id=1` | 🟢 | 🟢 | 🟢 | 🟢 | 🔴 |
@@ -320,6 +335,8 @@ These measurements validate that executing security-preserving URL canonicalizat
 | `http://api.example.com/swagger.json` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
 | `http://api.example.com/openapi.json` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
 | `http://api.example.com/v2/swagger.yaml` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
+
+For full per-class PRF, RAM, throughput, and the reproducer recipe see [udud-benchmark](https://github.com/ayodyadsr/udud-benchmark).
 
 ## Installation
 
