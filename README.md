@@ -95,6 +95,7 @@ How to read: on the Wayback capture, udud took 781,398 input URLs and emitted 12
 
 | Evaluation Metric | `udud` | `urldedupe` | `uro` | `urless` | `uddup` |
 |---|---:|---:|---:|---:|---:|
+| Completion Time (Wayback 781,398 URLs) | **~3.0 sec** | ~4.9 sec | ~17.5 sec | ~78 sec | DNF past ~50k URLs |
 | Throughput (URLs/sec) | **260,000** | 159,000 | 45,000 | 10,000 | DNF past ~50k URLs |
 | Peak Memory Footprint | **14 MB (Flat)** | 336 MB | 35 MB | 45 MB | DNF past ~50k URLs |
 | Attack Surface Retained (Wayback) | **~84%** | 100% (passthrough) | ~63% | ~67% | DNF past ~50k URLs |
