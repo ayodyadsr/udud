@@ -1,0 +1,20 @@
+#compdef xcull
+# zsh completion for xcull
+# Install: copy as `_xcull` into any directory on $fpath
+# (e.g. /usr/share/zsh/site-functions/), then `compinit`.
+
+_xcull() {
+    _arguments -s \
+        '-F[fold object-ids (numeric/UUID/hex/stem-id segments collapse to one witness)]' \
+        '-x[keep invalid URLs, no cleaning]' \
+        '-a[keep all assets (do not filter images/fonts/css/audio/video)]' \
+        '-s[case-sensitive path matching]' \
+        '-k[keep param values and every distinct query key-set]' \
+        '-p[no path templating (also drops title-slug fold)]' \
+        '-W[opt out of wayback-noise handling]' \
+        '-r[opt out of URL canonicalization]' \
+        '-V[print "in -> out (peak RSS)" stats to stderr]' \
+        '*:file:_files'
+}
+
+_xcull "$@"

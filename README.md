@@ -6,6 +6,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/xcull/xcull/actions/workflows/ci.yml"><img src="https://github.com/xcull/xcull/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
   <img src="https://img.shields.io/badge/language-C-00599C.svg">
   <img src="https://img.shields.io/badge/dependencies-none-success.svg">
   <img src="https://img.shields.io/badge/memory-22.6MB%20%2F%20780k%20URLs-success.svg">
@@ -64,10 +65,11 @@ sudo make install
 ```
 
 `make install` honors `PREFIX` (default `/usr/local`) and `DESTDIR` for
-packaging. The man page is installed alongside the binary, so
-`man xcull` works after install. `make test` runs the golden-output
-regression suite, `make benchmark` additionally builds `runstat`, the
-fork + wait4 + getrusage harness used by the benchmark.
+packaging. The man page and bash + zsh completion files install
+alongside the binary, so `man xcull` works after install and tab-completion
+picks up the flags. `make test` runs the golden-output regression suite,
+`make benchmark` additionally builds `runstat`, the fork + wait4 +
+getrusage harness used by the benchmark.
 
 ## Usage
 
