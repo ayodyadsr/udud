@@ -22,6 +22,10 @@
   <a href="#license">License</a>
 </p>
 
+<p align="center">
+  <img src="demo/xcull.gif" alt="xcull demo">
+</p>
+
 ---
 
 ## Features
@@ -30,7 +34,7 @@
 - Streaming reader with constant 22 MB peak RSS on 780,200 URLs.
 - Keeps every distinct numeric, UUID, and hex object identifier for IDOR and BOLA enumeration.
 - Keeps every distinct session token (`;jsessionid=`, `;sid=`, matrix parameters) for authorization testing.
-- Treats title-slug paths as endpoints, not as templated noise.
+- Conservative path templating: many slug variations under one endpoint collapse to a witness, but distinct endpoint patterns stay distinct (toggle off with `-p`).
 - Dedup keyed on the query parameter set: distinct shapes survive, per-value duplicates collapse.
 - Built-in wayback and scanner-probe noise filter (toggle with `-W`).
 - Built-in asset filter for css, fonts, images, audio, video (toggle with `-a`).
@@ -39,19 +43,32 @@
 
 ## Installation
 
+### Prebuilt binary
+
+Download the latest release for your platform from
+[github.com/xcull/xcull/releases](https://github.com/xcull/xcull/releases),
+then:
+
 ```sh
-git clone https://github.com/xcull/xcull
-cd xcull
-cc -O3 -march=native -flto -Wall -Wno-misleading-indentation -o xcull xcull.c
+tar xzf xcull-*-linux-x86_64.tar.gz
 sudo install -m755 xcull /usr/local/bin/xcull
 ```
 
-Optional benchmark helper (fork + wait4 + getrusage for wall, CPU and
-peak RSS):
+Releases include `linux-x86_64` and `linux-arm64`. Each archive ships
+with a `.sha256` next to it.
+
+### From source
 
 ```sh
-cc -O2 -o runstat runstat.c
+git clone https://github.com/xcull/xcull
+cd xcull
+make
+sudo make install
 ```
+
+`make install` honors `PREFIX` (default `/usr/local`) and `DESTDIR` for
+packaging. `make benchmark` additionally builds `runstat`, the fork +
+wait4 + getrusage harness used by the benchmark.
 
 ## Usage
 
