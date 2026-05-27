@@ -1,4 +1,4 @@
-/* udud v23 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
+/* xcull v23 - fast URL structural de-duplicator (C, single-pass, stdin->stdout)
  *
  * v23.0: keep distinct GraphQL ?query={...} values. A GraphQL GET request hits
  *      one path (/graphql) but the query VALUE is the whole operation, so two
@@ -90,7 +90,7 @@
  *      base-path table (btab, 24 B/base, 128-bit keyed for exactness) tracks the
  *      kept bare record and whether a decorated sibling was seen; peak RSS rises
  *      a little (781k wayback 20.3 -> 22.7 MB, still well under uro's 34.8 MB) and
- *      udud stays the lightest of all tools measured.
+ *      xcull stays the lightest of all tools measured.
  *
  * v19.0: subset-merge is no longer O(n^2) on a single hot path. The default
  *      keyset merge kept, per base path, ONE flat antichain list and rescanned
@@ -132,7 +132,7 @@
  *          table and 10.2->5.1 MB of deferred-emit records.
  *      (3) The base-path group table (gtab) is likewise hash-keyed and no longer
  *          copies the path prefix into the arena.
- *      NOTE: v18.8 was a docs-only release (LICENSE.md/UCOL.md/README); this is
+ *      NOTE: v18.8 was a docs-only release (LICENSE.md/XCOL.md/README); this is
  *      the first code change since v18.7.
  *
  * v18.7: drop corrupted content-hash captures. A content_hash_id() leaf whose
@@ -250,15 +250,15 @@
  *      /account/9/billing) is PRESERVED unless -F is given. What else stays
  *      ON by default: query KEY-SET dedup (?a=1 == ?a=2), title-slug fold
  *      (v15 is_slug + v16 content-section), exact-line dedup, the noise-asset
- *      filter (-a recovers) and the sanity gate. So default udud is "exact
- *      dedup that is still structurally smart", not sort -u; `udud -F`
+ *      filter (-a recovers) and the sanity gate. So default xcull is "exact
+ *      dedup that is still structurally smart", not sort -u; `xcull -F`
  *      reproduces the v17 fold-everything behaviour. Single-pass,
  *      O(distinct sigs) RAM and O(seg)/line are unchanged - -F just lifts the
  *      content-section gate and re-enables the uuid/hex/stem cold branches.
  *      NOTE: this inverts the v17 default; any published benchmark that was
  *      measured on folded output must be re-run with -F to stay comparable.
  *
- * v17: mixed alphanumeric id fold. udud already templated all-digit ('N'),
+ * v17: mixed alphanumeric id fold. xcull already templated all-digit ('N'),
  *      uuid ('U'), long-hex ('H') and "<stem>-<digits>" (id_stem) segments,
  *      but NOT a per-object reference that mixes letters and a digit run -
  *      e.g. /blah/U-61723A/settings vs /blah/U-63352B/settings stayed two
@@ -300,8 +300,8 @@
  *
  * v15: speed overhaul to hold the Pareto frontier on wall time too. The Q1
  *      synthetic-corpus measurement (D_synth.full, 45410 lines, frozen rig)
- *      had urldedupe at 0.164s and udud at 0.214s - urldedupe winning the
- *      Execution Time column by 50 ms. Hand-instrumented the udud hot path:
+ *      had urldedupe at 0.164s and xcull at 0.214s - urldedupe winning the
+ *      Execution Time column by 50 ms. Hand-instrumented the xcull hot path:
  *      the per-byte locale-aware tolower(3) on the path lowering loop
  *      dominated (~80 calls/line * ~25 ns each), then the second full
  *      scan of the path in the canonical-output rebuilder, then 4x memmem
@@ -335,11 +335,11 @@
  *      Output is byte-identical to v14 across all 4 corpora (synth +
  *      D_example_wb + D_example_gau + D_vulnweb) - the audit verdict
  *      (zero real attack surface lost) stands unchanged. See README.md
- *      and udud-benchmark/BENCHMARK.md for the published wall/RSS
+ *      and xcull-benchmark/BENCHMARK.md for the published wall/RSS
  *      numbers.
  *
  * v14: published de-identified Q1 re-benchmark (D_example_*) hand-audited
- *      udud's per-cell lost lines line by line. The de-identified gau
+ *      xcull's per-cell lost lines line by line. The de-identified gau
  *      corpus exposed one REAL destruction that v13 was making and the
  *      v13 AUDIT.md had mis-classified: the embedded-domain spam gate
  *      destroyed qeif.tv.example.com/qeif/p1/dc/pqawjqix (de-id form
@@ -382,7 +382,7 @@
  *      unchanged, still O(unique signatures) RAM, still single-pass.
  *
  * v13: Q1-grade re-benchmark (N=10, fixed-clock, canonicalization-invariant
- *      quality metric) hand-audited every udud "loss" and exposed a FOURTH
+ *      quality metric) hand-audited every xcull "loss" and exposed a FOURTH
  *      genuine destruction bug, fixed at source, still strictly single-pass /
  *      NO buffering:
  *        - bad_bytes()'s BB_S[] (the both-path-AND-query Aho-Corasick set
@@ -408,7 +408,7 @@
  *          stream delta 0, deterministic, zero garbage leaked, zero loss.
  *        - RAM claim corrected (honesty): older blocks below say "RSS
  *          constant ~3.5 MB (~6.6 MB on the 634k stream)". That is WRONG.
- *          udud keeps one templated signature per UNIQUE structural class,
+ *          xcull keeps one templated signature per UNIQUE structural class,
  *          so peak RSS is O(distinct signatures), not constant. Measured
  *          on the frozen Q1 rig: 18.3 MB peak on the 781398-line
  *          wayback corpus (124975 unique signatures). It is still by far
@@ -424,7 +424,7 @@
  *          M[]={".php",".asp",".jsp",".htm",".cgi",".pl"}; the test was
  *          `else if(M[m][1]=='t')` but for ".htm" M[m][1]=='h', so the
  *          branch never matched -> EVERY .html terminal segment was
- *          flagged "mangled extension" and the whole URL DROPPED. udud
+ *          flagged "mangled extension" and the whole URL DROPPED. xcull
  *          had been silently destroying 100% of .html across vulnweb /
  *          testinvicti / gau / wayback through v7..v11. Fixed
  *          to `else if(M[m][1]=='h')` (only ".htm" has [1]=='h'; ".php"
@@ -469,7 +469,7 @@
  *          "blog,article,news,..." - it deletes ANY path containing
  *          those words (it also nuked Blogs.aspx) and emits a trailing
  *          blank line. Its real dedup only templates int/GUID/lang.
- *      So their small counts are DESTRUCTION, not precision; udud's
+ *      So their small counts are DESTRUCTION, not precision; xcull's
  *      single-pass per-line-signature architecture is sound - it was
  *      only missing one templating class. Added is_slug(): a LEAF
  *      title-slug (lowercase, >=2 '-', no '.', ends in -<digits>,
@@ -478,7 +478,7 @@
  *      first-seen URL (emitted verbatim) while swagger.json, *.js,
  *      robots.txt, Blogs.aspx, process.bak are ALL kept. testinvicti
  *      163 -> 35, blog 36->1, 0 garbage, 0 blank, nothing real lost -
- *      and udud is the ONLY tool that keeps swagger.json + .js +
+ *      and xcull is the ONLY tool that keeps swagger.json + .js +
  *      robots.txt while still collapsing blog to one. vulnweb corpus
  *      1354 -> 1354 UNCHANGED (the rule is strict enough that the
  *      regression set has no false slug), every finding count / 53
@@ -487,7 +487,7 @@
  *      (3648 KB real / 3556 KB on the 3.03M-line 242 MB stream).
  *
  * v10: head-to-head vs uro/urldedupe/urless/uddup on testinvicti.com
- *      exposed two real udud defects - both fixed at source, still
+ *      exposed two real xcull defects - both fixed at source, still
  *      single-pass / O(1)-extra-RAM, NO buffering:
  *        - is_index() was TOO BROAD: it folded named server-side
  *          handlers (Default.aspx, home.jsp, index.aspx, default.php)
@@ -537,7 +537,7 @@
  *     Mod_Rewr->Mod_Rewrite_Shop) is left intact ON PURPOSE - those are
  *     valid distinct URLs; collapsing them needs cross-line survivor
  *     buffering (uddup's 21-min path) which would forfeit the single-pass
- *     / constant-RAM property that is the entire point of udud.
+ *     / constant-RAM property that is the entire point of xcull.
  *
  * v8: line-by-line pentester audit (host level) - host_embeds_domain():
  *     drop hosts whose SUBDOMAIN portion embeds a public registrable
@@ -593,7 +593,7 @@
  *        -s case-sensitive path | -W keep raw hosts | -r raw first-seen |
  *        -k keep param values | -p no path templating | -V stats |
  *        (-f/-w/-c legacy no-ops)
- * Build: cc -O3 -march=native -flto -o udud udud.c
+ * Build: cc -O3 -march=native -flto -o xcull xcull.c
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -607,7 +607,7 @@
  * tolower(3) is locale-aware (TLS lookup + per-call dispatch on glibc). On the
  * synthetic corpus the per-line path-lowering loop was the single largest hot
  * spot. URLs are ASCII by RFC; a 256-byte branch-free LUT folds A-Z to a-z and
- * passes everything else through, which is what udud's path/host/scheme
+ * passes everything else through, which is what xcull's path/host/scheme
  * lowering already wanted (the surrounding code never touched non-ASCII bytes
  * in those positions because bad_bytes() drops them upstream). */
 static unsigned char LO[256];
@@ -647,7 +647,7 @@ static size_t arena_put(const char *s, size_t n) {
          * capped at 4 GB; recon corpora never approach this (155 MB input
          * -> ~38 MB arena). Fail loud rather than silently truncate. */
         if (arena_cap > 0xFFFFFFFFull) {
-            fprintf(stderr,"udud: dedup arena would exceed 4 GB; "
+            fprintf(stderr,"xcull: dedup arena would exceed 4 GB; "
                            "split the input or use -k streaming mode\n");
             exit(1); }
         if (!(arena = realloc(arena, arena_cap))) { perror("realloc"); exit(1); }
@@ -984,7 +984,7 @@ static int content_hash_junk(const char*s,size_t n){
  * first-seen URL is still emitted verbatim). This is what uddup gets
  * by blindly dropping the last segment (but it also deletes every
  * .js/.json/.txt - losing swagger.json) and urless by a blog/news
- * keyword BLACKLIST (it deletes Blogs.aspx too). udud gets the same
+ * keyword BLACKLIST (it deletes Blogs.aspx too). xcull gets the same
  * collapse with ZERO collateral loss, single-pass, no buffering.
  * Strict so real distinct endpoints are never merged - ALL of:
  *   - it is the last path segment (parents define the section)
@@ -1440,7 +1440,7 @@ static int clock_frag(const char*s,size_t n){
  * link the spider re-appended at each depth, never a real endpoint. The
  * non-recursed endpoint (/categories.php , /login.php , /shop/details/
  * <p>/<n>/buy.php , single /images) always survives. Intra-line, O(n),
- * NO buffering - distinct from the cross-line prefix-walk class udud
+ * NO buffering - distinct from the cross-line prefix-walk class xcull
  * deliberately leaves alone. Len>=2 so an innocuous /a/a/ is spared. */
 static int repeat_seg(const char*s,size_t n){
     size_t i=0;
@@ -1873,7 +1873,7 @@ int main(int argc,char**argv){
         else if(c=='f'||c=='w'||c=='c'){ /* legacy no-ops (already default) */ }
         else if(c=='V')V=1;
         else { fprintf(stderr,
-          "usage: udud [-F fold-ids][-x keep-invalid][-a keep-assets]"
+          "usage: xcull [-F fold-ids][-x keep-invalid][-a keep-assets]"
           "[-s case-sensitive][-L N subset-cmp cap][-k][-p][-W][-r][-V]\n");
           return 2; } }
     lo_init();
@@ -2238,6 +2238,6 @@ int main(int argc,char**argv){
         }
     }
     if(V){ struct rusage ru; getrusage(RUSAGE_SELF,&ru);
-        fprintf(stderr,"udud: %llu -> %llu  (peak RSS %ld KB)\n",total,kept,ru.ru_maxrss); }
+        fprintf(stderr,"xcull: %llu -> %llu  (peak RSS %ld KB)\n",total,kept,ru.ru_maxrss); }
     return 0;
 }

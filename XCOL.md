@@ -1,20 +1,20 @@
-# Udud Commercial & OEM License (UCOL) v1.0
+# Xcull Commercial & OEM License (XCOL) v1.0
 
-Udud is a high-performance URL normalization and structural deduplication engine designed for reconnaissance workflows, attack-surface reduction, and large-scale security data processing. It is continuously developed to help security researchers and organizations reduce duplicate noise while preserving meaningful attack surface data.
+Xcull is a high-performance URL normalization and structural deduplication engine designed for reconnaissance workflows, attack-surface reduction, and large-scale security data processing. It is continuously developed to help security researchers and organizations reduce duplicate noise while preserving meaningful attack surface data.
 
-Udud is free for end users, researchers, educators, and internal organizational use. However, the free Udud license does not allow redistribution of Udud within proprietary software products, commercial SaaS platforms, managed security services, or hardware appliances.
+Xcull is free for end users, researchers, educators, and internal organizational use. However, the free Xcull license does not allow redistribution of Xcull within proprietary software products, commercial SaaS platforms, managed security services, or hardware appliances.
 
-To support long-term development of the project, commercial redistribution rights are provided through the **Udud Commercial & OEM License (UCOL)** program.
+To support long-term development of the project, commercial redistribution rights are provided through the **Xcull Commercial & OEM License (XCOL)** program.
 
 ---
 
-# Top Udud OEM Redistribution License Features
+# Top Xcull OEM Redistribution License Features
 
 ## Redistribution Rights
 
-The free Udud license does not allow redistribution or embedding of Udud within proprietary products or commercial hosted platforms.
+The free Xcull license does not allow redistribution or embedding of Xcull within proprietary products or commercial hosted platforms.
 
-A Udud OEM License grants the right to redistribute Udud:
+A Xcull OEM License grants the right to redistribute Xcull:
 
 - within a specific product line,
 - across multiple products,
@@ -40,7 +40,7 @@ Depending on the agreement, these builds may include:
 
 ## Commercial Support
 
-Udud OEM maintenance plans include commercial technical support to ensure:
+Xcull OEM maintenance plans include commercial technical support to ensure:
 
 - integration issues are resolved promptly,
 - deployment problems are addressed efficiently,
@@ -63,29 +63,29 @@ Maintenance plans include update rights, ensuring access to:
 
 ## Continuity
 
-Udud OEM customers receive contractual commercial usage rights independent from future changes to the public license.
+Xcull OEM customers receive contractual commercial usage rights independent from future changes to the public license.
 
-Commercial licensing revenue directly supports continued development and maintenance of the Udud project.
+Commercial licensing revenue directly supports continued development and maintenance of the Xcull project.
 
 ---
 
 # Intended Usage
 
-The Udud OEM program is intended for organizations wishing to:
+The Xcull OEM program is intended for organizations wishing to:
 
-- redistribute Udud within commercial software,
-- embed Udud into proprietary products,
-- integrate Udud into SaaS platforms,
-- deploy Udud within managed security services,
-- bundle Udud within hardware or virtual appliances.
+- redistribute Xcull within commercial software,
+- embed Xcull into proprietary products,
+- integrate Xcull into SaaS platforms,
+- deploy Xcull within managed security services,
+- bundle Xcull within hardware or virtual appliances.
 
-Organizations using Udud only internally generally do not require an OEM license.
+Organizations using Xcull only internally generally do not require an OEM license.
 
 ---
 
 # Integration Approach
 
-The recommended integration approach is to install Udud within the target environment and invoke it programmatically when required.
+The recommended integration approach is to install Xcull within the target environment and invoke it programmatically when required.
 
 Typical integration methods include:
 
@@ -100,7 +100,7 @@ Typical integration methods include:
 
 # License Prices & Terms
 
-To keep licensing straightforward, standard Udud OEM licenses do not include per-seat royalties or per-scan fees.
+To keep licensing straightforward, standard Xcull OEM licenses do not include per-seat royalties or per-scan fees.
 
 Licenses are generally offered under two structures:
 
@@ -115,7 +115,7 @@ Pricing is based on overall company size rather than individual teams or departm
 
 ---
 
-## Udud OEM Enterprise Redistribution License
+## Xcull OEM Enterprise Redistribution License
 
 Designed for large organizations and enterprise-scale vendors.
 
@@ -133,7 +133,7 @@ Designed for large organizations and enterprise-scale vendors.
 
 ---
 
-## Udud OEM Mid-Sized Company Redistribution License
+## Xcull OEM Mid-Sized Company Redistribution License
 
 Designed for mid-sized organizations.
 
@@ -156,7 +156,7 @@ Designed for mid-sized organizations.
 
 ---
 
-## Udud OEM Small / Startup Redistribution License
+## Xcull OEM Small / Startup Redistribution License
 
 Designed for startups and small companies.
 
@@ -183,17 +183,17 @@ Designed for startups and small companies.
 
 Perpetual licenses include a 90-day evaluation period.
 
-If Udud OEM does not meet operational requirements during this period, customers may terminate the agreement and request a full refund.
+If Xcull OEM does not meet operational requirements during this period, customers may terminate the agreement and request a full refund.
 
 Quarterly licenses may be canceled during the first 14 days of the initial term for a full refund.
 
-Organizations may also evaluate the standard public version of Udud before purchase.
+Organizations may also evaluate the standard public version of Xcull before purchase.
 
 ---
 
 # Purchasing Process
 
-To purchase a Udud OEM License, contact:
+To purchase a Xcull OEM License, contact:
 
 **commercial@ayodyadsr.com**
 

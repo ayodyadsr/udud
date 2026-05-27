@@ -1,8 +1,8 @@
-# Udud Source Available License (USAL) v1.0
+# Xcull Source Available License (XSAL) v1.0
 
 **Copyright (c) 2026 Ayodya Dewangga Sasotya Rahmadita**
 
-This License Agreement governs your use, modification, and redistribution of the Udud and all associated source code, documentation, and data files (collectively, the "Software").
+This License Agreement governs your use, modification, and redistribution of the Xcull and all associated source code, documentation, and data files (collectively, the "Software").
 
 By downloading, installing, copying, or using the Software, you accept and agree to be legally bound by all terms and conditions contained within this License Agreement. If you do not agree to these terms, you do not have permission to use the Software.
 
@@ -23,7 +23,7 @@ Subject to the conditions and restrictions set forth in Section 2 and Section 3,
 
 You may modify the source code of the Software and redistribute those modifications or the original Software to third parties, provided that you comply with all of the following requirements:
 
-* **Source Code Availability:** You must make the complete source code of your modified version available to all recipients under this exact same license (USAL v1.0). You cannot apply stricter terms or alternative licenses to downstream recipients.
+* **Source Code Availability:** You must make the complete source code of your modified version available to all recipients under this exact same license (XSAL v1.0). You cannot apply stricter terms or alternative licenses to downstream recipients.
 * **Preservation of Attribution:** You must retain all original copyright notices, developer attributions, trademarks, and licensing files intact within all copies of the source code and documentation.
 * **Documentation of Changes:** You must add prominent notices to any modified files stating clearly that you have altered the original Software, including the date and a brief description of the modifications made.
 
@@ -44,7 +44,7 @@ Any use, modification, or redistribution of the Software outside of the scope ex
 
 Organizations that cannot comply with the open-source redistribution requirements of Section 2, or companies that wish to engage in the restricted commercial activities outlined in Section 3, must purchase a dedicated commercial contract. 
 
-Commercial license tiers, pricing, and agreements are managed under the **Udud Commercial & OEM License (UCOL)** program. For more details, please review the [UCOL Document](UCOL.md)
+Commercial license tiers, pricing, and agreements are managed under the **Xcull Commercial & OEM License (XCOL)** program. For more details, please review the [XCOL Document](XCOL.md)
 
 ---
 

@@ -1,4 +1,4 @@
-<h1 align="center">udud</h1>
+<h1 align="center">xcull</h1>
 
 <p align="center">
   <b>URL Deduplicate Data</b><br>
@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/language-C-00599C.svg">
   <img src="https://img.shields.io/badge/dependencies-none-success.svg">
   <img src="https://img.shields.io/badge/memory-22.6MB%20%2F%20780k%20URLs-success.svg">
-  <a href="https://github.com/ayodyadsr/udud-benchmark"><img src="https://img.shields.io/badge/benchmark-results-orange.svg"></a>
+  <a href="https://github.com/xcull/xcull-benchmark"><img src="https://img.shields.io/badge/benchmark-results-orange.svg"></a>
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
 
 ## Abstract
 
-Large-scale reconnaissance pipelines generate millions of URLs that require canonicalization prior to downstream security analysis [1], [6], [27], [28]. Traditional URL deduplication tools prioritize high reduction ratios and storage efficiency, which introduces an operational trade-off by discarding unique parameter structures and security-relevant endpoints [2], [8], [29]. This repository evaluates **udud**, a C-based, security-aware URL canonicalization engine, against four industry baselines, including `urldedupe`, `uro`, `urless`, and `uddup`. The evaluation utilizes a single labeled corpus (`D_unified.full`, 780,200 URLs across 55,920 canonical endpoint groups whose correct groupings are recorded in ground truth) so that throughput, memory consumption, attack-surface retention, and false merge rate are all measured on the same input [3], [10], [12], [42]. Experimental benchmarks demonstrate that **udud** sustains a peak memory footprint of **22.6 MB** through fixed-size lookahead mmap buffers [16], [30] and a peak throughput of **451,000 URLs/sec**, finishing the 780,200-URL corpus in 1.73 s on a single core. In comparative testing on the same input, **udud** retains **100%** of canonical endpoint groups and achieves a **0% false merge rate**, outperforming reduction-optimized tools in asset preservation without increasing infrastructural overhead [20], [40].
+Large-scale reconnaissance pipelines generate millions of URLs that require canonicalization prior to downstream security analysis [1], [6], [27], [28]. Traditional URL deduplication tools prioritize high reduction ratios and storage efficiency, which introduces an operational trade-off by discarding unique parameter structures and security-relevant endpoints [2], [8], [29]. This repository evaluates **xcull**, a C-based, security-aware URL canonicalization engine, against four industry baselines, including `urldedupe`, `uro`, `urless`, and `uddup`. The evaluation utilizes a single labeled corpus (`D_unified.full`, 780,200 URLs across 55,920 canonical endpoint groups whose correct groupings are recorded in ground truth) so that throughput, memory consumption, attack-surface retention, and false merge rate are all measured on the same input [3], [10], [12], [42]. Experimental benchmarks demonstrate that **xcull** sustains a peak memory footprint of **22.6 MB** through fixed-size lookahead mmap buffers [16], [30] and a peak throughput of **451,000 URLs/sec**, finishing the 780,200-URL corpus in 1.73 s on a single core. In comparative testing on the same input, **xcull** retains **100%** of canonical endpoint groups and achieves a **0% false merge rate**, outperforming reduction-optimized tools in asset preservation without increasing infrastructural overhead [20], [40].
 
 ---
 
@@ -37,7 +37,7 @@ Standard URL deduplication architectures prioritize aggressive normalization rul
 
 This systemic reduction in endpoint diversity directly degrades the efficacy of downstream scanning tools [3], [36]. The data loss is highly pronounced during the automated discovery of business logic vulnerabilities, access control breakdowns, and object-level authorization vulnerabilities such as Insecure Direct Object References (IDOR) and Broken Object Level Authorization (BOLA) [4], [14], [34], [35]. When a normalization filter mistakes an identifier parameter for redundant query clutter, the endpoint is dropped from the execution queue, rendering the security flaw untestable by automated systems [21], [43], [44].
 
-To bridge this operational gap, `udud` introduces a security-aware canonicalization model designed to balance system resource efficiency with detailed attack-surface preservation. This study evaluates the core processing throughput, memory scalability, and retention properties of `udud` against widely deployed URL deduplication utilities through a series of empirical, reproducible benchmarks [5], [20], [37].
+To bridge this operational gap, `xcull` introduces a security-aware canonicalization model designed to balance system resource efficiency with detailed attack-surface preservation. This study evaluates the core processing throughput, memory scalability, and retention properties of `xcull` against widely deployed URL deduplication utilities through a series of empirical, reproducible benchmarks [5], [20], [37].
 
 ---
 
@@ -47,7 +47,7 @@ To bridge this operational gap, `udud` introduces a security-aware canonicalizat
 
 The evaluation establishes a performance baseline by comparing the following operational engines:
 
-- `udud`
+- `xcull`
 - `urldedupe`
 - `uro`
 - `urless`
@@ -84,15 +84,15 @@ The complete performance metrics across all evaluated URL deduplication engines 
 
 **Input → Output (raw URL counts after dedup):**
 
-| Corpus (Input URLs) | `udud` | `urldedupe` | `uro` | `urless` | `uddup` |
+| Corpus (Input URLs) | `xcull` | `urldedupe` | `uro` | `urless` | `uddup` |
 |---|---:|---:|---:|---:|---:|
 | `D_unified.full` (780,200) | **115,764** | 380,650 | 64,667 | 64,138 | DNF (>600 s) |
 
-How to read: udud took 780,200 input URLs and emitted 115,764 (kept 14.8%, dropped 85.2%). `uro` and `urless` emit fewer lines, but they get there by folding away whole endpoint classes (see Attack Surface Retained below); `urldedupe` emits 3.3x udud's count because it barely deduplicates (passthrough).
+How to read: xcull took 780,200 input URLs and emitted 115,764 (kept 14.8%, dropped 85.2%). `uro` and `urless` emit fewer lines, but they get there by folding away whole endpoint classes (see Attack Surface Retained below); `urldedupe` emits 3.3x xcull's count because it barely deduplicates (passthrough).
 
 **Performance and quality metrics on the same runs:**
 
-| Evaluation Metric | `udud` | `urldedupe` | `uro` | `urless` | `uddup` |
+| Evaluation Metric | `xcull` | `urldedupe` | `uro` | `urless` | `uddup` |
 |---|---:|---:|---:|---:|---:|
 | Completion Time | **1.73 sec** | 2.27 sec | 7.36 sec | 8.83 sec | DNF (>600 s) |
 | Throughput (URLs/sec) | **451,000** | 343,000 | 106,000 | 88,000 | DNF |
@@ -104,7 +104,7 @@ How to read: udud took 780,200 input URLs and emitted 115,764 (kept 14.8%, dropp
 
 ## 3.2 Memory Scalability
 
-On the 780,200-URL `D_unified.full` corpus, `udud` held peak resident memory at 22.6 MB, the lowest among the tools that completed the run. The next-smallest peak (`uro`, 27.6 MB) is 1.22x heavier and reaches it by folding away whole endpoint classes; `urldedupe` reaches 193.8 MB by keeping a per-URL hash table for the near-passthrough output, and `uddup` does not complete the run at all because its working set grows with the square of the input. The underlying engine optimizes heap utilization through fixed-size lookahead buffers and arena allocation strategies [16], [30], so memory consumption scales with active parameter state trees rather than raw input block size [17], [31]. Competitive engines demonstrated linear or super-linear memory expansion patterns under the same input due to unoptimized heap allocation [18], [19], [32], [33].
+On the 780,200-URL `D_unified.full` corpus, `xcull` held peak resident memory at 22.6 MB, the lowest among the tools that completed the run. The next-smallest peak (`uro`, 27.6 MB) is 1.22x heavier and reaches it by folding away whole endpoint classes; `urldedupe` reaches 193.8 MB by keeping a per-URL hash table for the near-passthrough output, and `uddup` does not complete the run at all because its working set grows with the square of the input. The underlying engine optimizes heap utilization through fixed-size lookahead buffers and arena allocation strategies [16], [30], so memory consumption scales with active parameter state trees rather than raw input block size [17], [31]. Competitive engines demonstrated linear or super-linear memory expansion patterns under the same input due to unoptimized heap allocation [18], [19], [32], [33].
 
 ---
 
@@ -112,7 +112,7 @@ On the 780,200-URL `D_unified.full` corpus, `udud` held peak resident memory at 
 
 The aggressive, rule-based text normalization logic used within `uro` and `urless` relies on traditional Locality-Sensitive Hashing (LSH) and MinHash similarity estimation [15], [29]. This approach frequently misidentified custom parameter routing flags and object arrays as redundant keys [7]. On `D_unified.full` this behavior collapsed whole endpoint classes: `uro` destroyed every JSESSIONID group, every title-slug group, and every UUID group (1,248 canonical groups removed, 2.23% false merge rate), and `urless` destroyed every JSESSIONID group and every title-slug group (1,777 canonical groups removed, 3.18% false merge rate).
 
-The C-based architecture of `udud` demonstrated a high resistance to destructive merging errors. It retained 100% of the 55,920 canonical endpoint groups in the corpus while restricting the total false merge rate to 0%. Detailed inspection of the preserved outputs confirmed the retention of state-specific endpoints and object-ID vectors, which are essential inputs for downstream automated access control validation systems and dynamic logical verification workflows [4], [22], [34], [43].
+The C-based architecture of `xcull` demonstrated a high resistance to destructive merging errors. It retained 100% of the 55,920 canonical endpoint groups in the corpus while restricting the total false merge rate to 0%. Detailed inspection of the preserved outputs confirmed the retention of state-specific endpoints and object-ID vectors, which are essential inputs for downstream automated access control validation systems and dynamic logical verification workflows [4], [22], [34], [43].
 
 ---
 
@@ -120,13 +120,13 @@ The C-based architecture of `udud` demonstrated a high resistance to destructive
 
 The empirical data gathered during this study reveals that optimizing URL canonicalization for security operations requires a fundamentally different set of priorities than general-purpose web indexing pipelines [2], [8], [28]. Standard compression-focused filters maximize raw byte reductions at the direct cost of destroying semantic context, which drastically diminishes the execution accuracy of downstream vulnerability fuzzers [3], [13], [36].
 
-`udud` mitigates this dynamic trade-off through specialized heuristic logic tailored to recognize hazardous parameter structures and target endpoints prior to string normalization [15], [35], [42]. By compiling these rules into low-level routines with dedicated mempool configurations [16], [19], [30], [31], the system satisfies two critical constraints simultaneously. It delivers high execution speeds with flat mempool behavior while avoiding the catastrophic loss of security context. These characteristics make the engine well-suited for deployment in edge-node reconnaissance networks, where maintaining low infrastructure overhead and maximizing discovery coverage are equal operational mandates [1], [24], [40].
+`xcull` mitigates this dynamic trade-off through specialized heuristic logic tailored to recognize hazardous parameter structures and target endpoints prior to string normalization [15], [35], [42]. By compiling these rules into low-level routines with dedicated mempool configurations [16], [19], [30], [31], the system satisfies two critical constraints simultaneously. It delivers high execution speeds with flat mempool behavior while avoiding the catastrophic loss of security context. These characteristics make the engine well-suited for deployment in edge-node reconnaissance networks, where maintaining low infrastructure overhead and maximizing discovery coverage are equal operational mandates [1], [24], [40].
 
 ---
 
 # 5. Conclusion
 
-This study executed a comparative performance evaluation between `udud` and established URL deduplication frameworks used within active reconnaissance systems. Experimental benchmarks confirm that `udud` yields:
+This study executed a comparative performance evaluation between `xcull` and established URL deduplication frameworks used within active reconnaissance systems. Experimental benchmarks confirm that `xcull` yields:
 
 - The highest throughput at 451,000 URLs/sec on the 780,200-URL `D_unified.full` corpus, finishing in 1.73 s on a single core
 - The lowest peak memory footprint at 22.6 MB on the same run
@@ -243,9 +243,9 @@ These measurements validate that executing security-preserving URL canonicalizat
 > truth), with peak RSS, throughput, completion time, false merge rate,
 > per-class PRF, and every CSV behind every claim, lives in a separate repo:
 >
-> **[github.com/ayodyadsr/udud-benchmark](https://github.com/ayodyadsr/udud-benchmark)**
+> **[github.com/xcull/xcull-benchmark](https://github.com/xcull/xcull-benchmark)**
 
-| Raw Input URL | uro | urless | urldedupe | uddup | udud |
+| Raw Input URL | uro | urless | urldedupe | uddup | xcull |
 |---|---|---|---|---|---|
 | `http://example.com/page.php?id=1` | 🟢 | 🟢 | 🟢 | 🟢 | 🔴 |
 | `http://example.com/page.php?id=2` | 🔴 | 🔴 | 🔴 | 🟢 | 🔴 |
@@ -347,15 +347,15 @@ These measurements validate that executing security-preserving URL canonicalizat
 | `http://api.example.com/openapi.json` | 🟢 | 🟢 | 🟢 | 🔴 | 🟢 |
 | `http://api.example.com/v2/swagger.yaml` | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
 
-For full per-class PRF, RAM, throughput, and the reproducer recipe see [udud-benchmark](https://github.com/ayodyadsr/udud-benchmark).
+For full per-class PRF, RAM, throughput, and the reproducer recipe see [xcull-benchmark](https://github.com/xcull/xcull-benchmark).
 
 ## Installation
 
 ```sh
-git clone https://github.com/ayodyadsr/udud
-cd udud
-cc -O3 -march=native -flto -Wall -Wno-misleading-indentation -o udud udud.c
-sudo install -m755 udud /usr/local/bin/udud
+git clone https://github.com/xcull/xcull
+cd xcull
+cc -O3 -march=native -flto -Wall -Wno-misleading-indentation -o xcull xcull.c
+sudo install -m755 xcull /usr/local/bin/xcull
 ```
 
 Optional benchmark helper (fork + wait4 + getrusage for wall, CPU and
@@ -368,14 +368,14 @@ cc -O2 -o runstat runstat.c
 ## Usage
 
 ```sh
-cat urls.txt | udud
+cat urls.txt | xcull
 ```
 
 That is the normal case. Clean structural dedup runs by default with no
 flags.
 
 ```
-usage: udud [-F] [-x] [-a] [-s] [-k] [-p] [-W] [-r] [-V]
+usage: xcull [-F] [-x] [-a] [-s] [-k] [-p] [-W] [-r] [-V]
 
   -F   fold object-ids (numeric/UUID/hex/stem-id segments collapse to one
        witness). Default keeps every distinct id; -F is the aggressive
@@ -390,31 +390,31 @@ usage: udud [-F] [-x] [-a] [-s] [-k] [-p] [-W] [-r] [-V]
   -p   no path templating at all (also drops the title-slug fold)
   -W   opt out of wayback-noise handling
   -r   opt out of URL canonicalization
-  -V   print "udud: <in> -> <out> (peak RSS <n> KB)" to stderr
+  -V   print "xcull: <in> -> <out> (peak RSS <n> KB)" to stderr
 ```
 
 ## Examples
 
 ```sh
 # clean recon surface from an archive feed
-gau example.com | udud > surface.txt
+gau example.com | xcull > surface.txt
 
 # combine multiple sources, dedupe once
-cat gau.txt waybackurls.txt katana.txt | udud | tee urls.txt
+cat gau.txt waybackurls.txt katana.txt | xcull | tee urls.txt
 
 # feed a param-fuzzing pipeline
-gau example.com | udud | qsreplace FUZZ | anew params.txt
+gau example.com | xcull | qsreplace FUZZ | anew params.txt
 
 # show the reduction (stats on stderr, data still on stdout)
-cat urls.txt | udud -V > deduped.txt
+cat urls.txt | xcull -V > deduped.txt
 
 # structural dedup only, skip the cleaning
-cat urls.txt | udud -x
+cat urls.txt | xcull -x
 
 # keep every distinct user-id for IDOR / object enumeration (this is the
 # default), then collapse them to unique endpoints for a route-scan pass
-cat urls.txt | udud           # /user/41 and /user/42 both survive
-cat urls.txt | udud -F        # they collapse to one endpoint witness
+cat urls.txt | xcull           # /user/41 and /user/42 both survive
+cat urls.txt | xcull -F        # they collapse to one endpoint witness
 ```
 
 ## Support
@@ -431,6 +431,6 @@ If you would like to support this project, you can become a sponsor here:
 
 ## License
 
-This project is licensed under the **Udud Source Available License (USAL) v1.0**.
+This project is licensed under the **Xcull Source Available License (XSAL) v1.0**.
 
 For detailed terms, please read the full [LICENSE](LICENSE.md) file. 
