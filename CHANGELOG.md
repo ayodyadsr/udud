@@ -1,8 +1,8 @@
 # Changelog
 
-This is the user-visible release log. The full per-version reasoning,
-including which input/flag combinations were verified, lives in the
-header comment of [`xcull.c`](xcull.c).
+User-visible release log. For the verification matrix behind each entry
+(which inputs and flag combinations were checked), follow the
+corresponding tag in git history.
 
 ## v23.0 - GraphQL queries
 Keep distinct GraphQL `?query={...}` values. Previously the literal

@@ -164,6 +164,4 @@ details are in [XCOL.md](XCOL.md).
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for the user-visible release log.
-The full per-version reasoning lives in the header comment of
-[xcull.c](xcull.c).
+See [CHANGELOG.md](CHANGELOG.md) for the release log.
