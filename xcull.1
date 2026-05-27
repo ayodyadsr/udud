@@ -1,0 +1,139 @@
+.TH XCULL 1 "2026-05-27" "xcull 1.0.0" "User Commands"
+.SH NAME
+xcull \- security-aware URL deduplicator for recon pipelines
+.SH SYNOPSIS
+.B xcull
+.RB [ \-F ]
+.RB [ \-x ]
+.RB [ \-a ]
+.RB [ \-s ]
+.RB [ \-k ]
+.RB [ \-p ]
+.RB [ \-W ]
+.RB [ \-r ]
+.RB [ \-V ]
+.SH DESCRIPTION
+.B xcull
+reads URLs from standard input, one per line, and writes a deduplicated
+set to standard output. It is built for the front of a bug-bounty or
+penetration-test recon pipeline, where the input is the merged output
+of crawlers and archive sources (gau, waybackurls, katana, hakrawler,
+etc.) and the output is the working set passed to scanners, fuzzers,
+and parameter miners.
+.PP
+The default policy is keep-biased and security-aware: every distinct
+numeric, UUID, hex, and alphanumeric object identifier survives the
+dedup, every distinct session token is preserved, and dedup is keyed
+on the query parameter shape rather than the raw query string.
+Templating, asset filtering, and wayback / scanner-probe noise removal
+are on by default; each can be turned off by a flag.
+.SH OPTIONS
+.TP
+.B \-F
+Fold object ids. Numeric, UUID, hex and stem-id segments collapse to
+one witness per endpoint pattern. Default keeps every distinct id; use
+.B \-F
+for an aggressive route-discovery pass.
+.TP
+.B \-x
+Keep invalid URLs, fully raw, no cleaning. The garbage gate is off; the
+output is the raw structural dedup only.
+.TP
+.B \-a
+Keep all assets. The render-noise filter is off, so
+.IR .css ", " .png ", " .woff ", " .mp4 ", " .mp3 ", " .m4p
+and the other binary media extensions are kept.
+.TP
+.B \-s
+Case-sensitive path matching. Default folds path case so
+.I /Login
+and
+.I /login
+collide.
+.TP
+.B \-k
+Keep parameter values and emit every distinct query key-set as its own
+line. Disables the default query-subset merge and restores strict
+streaming output.
+.TP
+.B \-p
+No path templating at all. Also drops the title-slug fold, so
+.I /blog/foo
+and
+.I /blog/bar
+both survive.
+.TP
+.B \-W
+Disable wayback noise handling. Scanner-probe URLs captured by archive
+crawlers are kept verbatim.
+.TP
+.B \-r
+Disable URL canonicalization. Percent-escapes, default ports, and the
+other RFC 3986 normalisations are not applied.
+.TP
+.B \-V
+Verbose mode. Writes
+.I xcull: <in> -> <out>  (peak RSS <n> KB)
+to standard error at end of run. Stdout still carries the URLs.
+.SH EXAMPLES
+.PP
+Clean recon surface from an archive feed:
+.PP
+.RS
+.nf
+gau example.com | xcull > surface.txt
+.fi
+.RE
+.PP
+Combine multiple sources and dedupe once:
+.PP
+.RS
+.nf
+cat gau.txt waybackurls.txt katana.txt | xcull | tee urls.txt
+.fi
+.RE
+.PP
+Feed a parameter-fuzzing pipeline:
+.PP
+.RS
+.nf
+gau example.com | xcull | qsreplace FUZZ | anew params.txt
+.fi
+.RE
+.PP
+Show the reduction (stats on stderr, data still on stdout):
+.PP
+.RS
+.nf
+cat urls.txt | xcull \-V > deduped.txt
+.fi
+.RE
+.PP
+Two passes: first preserve every IDOR-relevant id, then collapse them
+for a route-scan witness set:
+.PP
+.RS
+.nf
+cat urls.txt | xcull        # default, /user/41 and /user/42 both survive
+cat urls.txt | xcull \-F     # collapse to one route witness
+.fi
+.RE
+.SH EXIT STATUS
+0 on success. Non-zero on I/O error or out-of-memory.
+.SH SEE ALSO
+.BR gau (1),
+.BR waybackurls (1),
+.BR katana (1),
+.BR qsreplace (1),
+.BR anew (1)
+.PP
+Reproducible benchmark and per-class quality numbers:
+.UR https://github.com/xcull/xcull-benchmark
+.UE
+.SH AUTHORS
+xcull project. Source available at
+.UR https://github.com/xcull/xcull
+.UE
+under the Xcull Source Available License (XSAL) v1.0. Commercial and
+OEM licensing terms are documented in
+.IR XCOL.md .

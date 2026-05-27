@@ -64,8 +64,10 @@ sudo make install
 ```
 
 `make install` honors `PREFIX` (default `/usr/local`) and `DESTDIR` for
-packaging. `make benchmark` additionally builds `runstat`, the fork +
-wait4 + getrusage harness used by the benchmark.
+packaging. The man page is installed alongside the binary, so
+`man xcull` works after install. `make test` runs the golden-output
+regression suite, `make benchmark` additionally builds `runstat`, the
+fork + wait4 + getrusage harness used by the benchmark.
 
 ## Usage
 
@@ -148,6 +150,18 @@ If you would like to support this project, you can become a sponsor here:
 
 ## License
 
-This project is licensed under the **Xcull Source Available License (XSAL) v1.0**.
+Source-available under the **Xcull Source Available License (XSAL) v1.0**.
+Free for personal use, bug-bounty research, and non-commercial security
+work. See the full [LICENSE](LICENSE.md) for terms.
 
-For detailed terms, please read the full [LICENSE](LICENSE.md) file.
+### Commercial and OEM licensing
+
+Embedding xcull in a commercial product, hosted service, SaaS platform,
+or appliance requires a separate license. Pricing tiers and contact
+details are in [XCOL.md](XCOL.md).
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for the user-visible release log.
+The full per-version reasoning lives in the header comment of
+[xcull.c](xcull.c).

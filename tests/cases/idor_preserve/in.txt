@@ -1,0 +1,4 @@
+https://api.example.com/v1/users/1001
+https://api.example.com/v1/users/1002
+https://api.example.com/v1/users/1003
+https://api.example.com/v1/users/9999

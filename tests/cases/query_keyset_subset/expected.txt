@@ -1,0 +1,3 @@
+https://target.com/search?debug=true
+https://target.com/search?id=1
+https://target.com/search?role=admin

@@ -1,0 +1,7 @@
+https://target.com/api/v1/users/1
+https://target.com/static/app.css
+https://target.com/static/logo.png
+https://target.com/static/icon.svg
+https://target.com/fonts/inter.woff2
+https://target.com/static/app.js.map
+https://target.com/api/v1/data.json

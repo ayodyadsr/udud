@@ -1,0 +1,4 @@
+https://target.com/account;jsessionid=AAAA1111
+https://target.com/account;jsessionid=BBBB2222
+https://target.com/account;jsessionid=CCCC3333
+https://target.com/account;jsessionid=DDDD4444

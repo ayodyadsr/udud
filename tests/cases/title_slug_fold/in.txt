@@ -1,0 +1,5 @@
+https://target.com/blog/how-i-found-a-bug-in-stripe
+https://target.com/blog/why-your-password-manager-leaks
+https://target.com/blog/the-ssrf-that-paid-for-my-rent
+https://target.com/blog/a-tale-of-two-jwts
+https://target.com/news/2024-recap
