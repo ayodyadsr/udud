@@ -26,13 +26,16 @@
 
 ## Features
 
-- Single C binary, no runtime dependencies
-- Streaming reader, fixed peak memory (~22 MB on 780k URLs)
-- Structural dedup that keeps object-ids, session tokens, slugs, and distinct query keysets
-- Wayback / scanner noise filter built in (toggle with `-W`)
-- Asset filter for `.css/.png/.woff/.mp4/...` (toggle with `-a`)
-- Optional aggressive endpoint folding with `-F` for route-scan passes
-- Reads stdin, writes stdout — drops straight into existing recon pipes
+Every claim below is measured on the public 780,200-URL labeled benchmark
+in [xcull-benchmark](https://github.com/xcull/xcull-benchmark).
+
+- **IDOR/BOLA surface stays alive.** Every distinct numeric id, UUID, and hex object-id survives the dedup by default. `/api/user/1001` and `/api/user/1002` both reach your fuzzer. `uro` merges them into one witness and silently deletes the enumerable surface before you see it.
+- **Session tokens are not noise.** Every distinct `;jsessionid=...`, `;sid=...`, and matrix-parameter value is kept as its own line. On the 780k-URL set, `uro` deletes 100% of JSESSIONID groups and 100% of UUID groups. `urless` deletes 100% of JSESSIONID groups. xcull keeps them all.
+- **Title-slug pages are real endpoints.** `/blog/why-people-suck` and `/blog/how-to-pick-locks` stay distinct unless you opt in to folding with `-F`. The competing tools collapse all 260 title-slug groups in the benchmark to zero. Article-level IDOR and authz bugs hide here.
+- **Dedup keys on the query shape, not the raw query string.** `/page?role=admin` and `/page?debug=true` survive because the parameter set is different. `/page?id=1` and `/page?id=2` collapse because only the value changed. You keep auth-bypass shapes and lose only the per-value duplicates.
+- **Wayback and scanner-probe noise is filtered by default.** Old SQLi/XSS sweeps captured by archive crawlers do not reappear in your fuzzing queue. Pass `-W` to keep the raw archive.
+- **22 MB peak RSS on 780k URLs.** Constant. `urldedupe` needs 194 MB for the same input. `uddup` is O(n²) and does not finish past 50k URLs. xcull runs on the smallest VPS you have, or inside a CI job, without tuning.
+- **One C binary, no Python, no pip, no runtime.** Streaming stdin to stdout. Drops into `gau | xcull | qsreplace | anew` with zero glue.
 
 ## Installation
 
@@ -113,7 +116,7 @@ every claim live in a separate repo:
 **[github.com/xcull/xcull-benchmark](https://github.com/xcull/xcull-benchmark)**
 
 A 99-row side-by-side demo (the kind of differences a recon engineer
-notices at a glance — object IDs, session tokens, slug folding, query
+notices at a glance: object IDs, session tokens, slug folding, query
 keyset merges) is at
 **[xcull-benchmark/COMPARISON.md](https://github.com/xcull/xcull-benchmark/blob/main/COMPARISON.md)**.
 
