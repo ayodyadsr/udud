@@ -421,11 +421,11 @@ cat urls.txt | xcull -F        # they collapse to one endpoint witness
 
 <div align="center">
 
-<a href="https://github.com/sponsors/ayodyadsr"><img src="https://img.shields.io/badge/Sponsor%20ayodyadsr-❤️-EA4AAA?style=for-the-badge&logo=github-sponsors&logoColor=white" alt="Sponsor ayodyadsr"></a>
+<a href="https://github.com/sponsors/xcull"><img src="https://img.shields.io/badge/Sponsor%20xcull-❤️-EA4AAA?style=for-the-badge&logo=github-sponsors&logoColor=white" alt="Sponsor xcull"></a>
 
 If you would like to support this project, you can become a sponsor here:
 
-**[github.com/sponsors/ayodyadsr](https://github.com/sponsors/ayodyadsr)**
+**[github.com/sponsors/xcull](https://github.com/sponsors/xcull)**
 
 </div>
 
