@@ -30,16 +30,13 @@
 
 ## Features
 
-- Single C binary, no runtime dependencies.
-- Streaming reader with constant 22 MB peak RSS on 780,200 URLs.
-- Keeps every distinct numeric, UUID, and hex object identifier for IDOR and BOLA enumeration.
-- Keeps every distinct session token (`;jsessionid=`, `;sid=`, matrix parameters) for authorization testing.
-- Conservative path templating: many slug variations under one endpoint collapse to a witness, but distinct endpoint patterns stay distinct (toggle off with `-p`).
-- Dedup keyed on the query parameter set: distinct shapes survive, per-value duplicates collapse.
-- Built-in wayback and scanner-probe noise filter (toggle with `-W`).
-- Built-in asset filter for css, fonts, images, audio, video (toggle with `-a`).
-- Aggressive object-id folding mode for route discovery (toggle with `-F`).
-- Drops into existing recon pipes, e.g. `gau | xcull | qsreplace | anew`.
+- Single static C binary with no runtime dependencies.
+- Streaming dedup with constant 22 MB peak RSS on 780,200 URLs.
+- Preserves every distinct object identifier (numeric, UUID, hex) for IDOR and BOLA enumeration.
+- Preserves every distinct session token for session-bound authorization testing.
+- Deduplicates on query parameter shape, not raw query string.
+- Path templating folds repetitive slug variations without merging distinct endpoints.
+- Filters binary assets, wayback noise, and scanner-probe URLs by default.
 
 ## Installation
 
