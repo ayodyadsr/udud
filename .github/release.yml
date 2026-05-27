@@ -1,0 +1,21 @@
+changelog:
+  exclude:
+    authors:
+      - dependabot
+      - app/dependabot
+  categories:
+    - title: Features
+      labels:
+        - "type: enhancement"
+    - title: Bug fixes
+      labels:
+        - "type: bug"
+    - title: Performance
+      labels:
+        - "type: perf"
+    - title: Maintenance
+      labels:
+        - "type: maintenance"
+    - title: Other changes
+      labels:
+        - "*"

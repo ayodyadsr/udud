@@ -1,0 +1,47 @@
+name: Feature request
+description: Propose a new dedup rule, flag, or pipeline integration.
+title: "[feat] "
+labels: ["type: enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        xcull is conservative by design: every new dedup rule has to argue
+        why the merged URLs were redundant for an attacker. See
+        [CHANGELOG.md](../../blob/main/CHANGELOG.md) for examples.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the problem?
+      description: |
+        What input class does xcull get wrong today? Paste a small example
+        if useful.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: What should xcull do instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: surface
+    attributes:
+      label: Surface preservation
+      description: |
+        If the proposal merges URLs that survive today, argue why the
+        merged URLs do not represent distinct attack surface (same
+        endpoint, no new param shape, no distinct identifier, etc.).
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false

@@ -1,0 +1,75 @@
+name: Bug report
+description: Report a wrong output, missed dedup, dropped surface, or crash.
+title: "[bug] "
+labels: ["type: bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. The fastest path to a fix is a minimal reproducer:
+        the smallest set of input lines that triggers the wrong behavior.
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command line
+      description: The exact command you ran (flags, redirections, pipes).
+      placeholder: cat in.txt | xcull -V > out.txt
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: input
+    attributes:
+      label: Minimal input
+      description: |
+        The smallest input that reproduces the issue. Five lines beats five
+        thousand. Paste the raw URLs, one per line.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected output
+      description: What xcull should have emitted (or what it should have dropped).
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual output
+      description: What xcull actually emitted.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: xcull version
+      description: Output of `xcull -V` on a dummy input, or the tag you built from.
+      placeholder: v1.0.1
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: OS, arch, compiler.
+      placeholder: Linux x86_64, gcc 13.2
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: Anything else worth knowing (input source, scanner, pipeline).
+    validations:
+      required: false
