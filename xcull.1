@@ -1,4 +1,4 @@
-.TH XCULL 1 "2026-05-27" "xcull 1.0.0" "User Commands"
+.TH XCULL 1 "2026-05-27" "xcull 1.0.1" "User Commands"
 .SH NAME
 xcull \- security-aware URL deduplicator for recon pipelines
 .SH SYNOPSIS
@@ -7,6 +7,8 @@ xcull \- security-aware URL deduplicator for recon pipelines
 .RB [ \-x ]
 .RB [ \-a ]
 .RB [ \-s ]
+.RB [ \-L
+.IR N ]
 .RB [ \-k ]
 .RB [ \-p ]
 .RB [ \-W ]
@@ -50,6 +52,13 @@ Case-sensitive path matching. Default folds path case so
 and
 .I /login
 collide.
+.TP
+.BI \-L " N"
+Cap subset-merge comparisons per inserted record. The default (0) is
+off, meaning every record is compared exactly. Use a small N as a
+safety valve for adversarial inputs that build a multi-cardinality
+antichain on a single path. When the cap trips, the record is kept
+un-merged, so output may differ from a full run.
 .TP
 .B \-k
 Keep parameter values and emit every distinct query key-set as its own
@@ -119,7 +128,15 @@ cat urls.txt | xcull \-F     # collapse to one route witness
 .fi
 .RE
 .SH EXIT STATUS
-0 on success. Non-zero on I/O error or out-of-memory.
+.TP
+.B 0
+Success.
+.TP
+.B 1
+I/O error, allocation failure, or out-of-memory.
+.TP
+.B 2
+Unknown flag or malformed argument.
 .SH SEE ALSO
 .BR gau (1),
 .BR waybackurls (1),
