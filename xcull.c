@@ -18,7 +18,7 @@
  *      anywhere in a path, and every other key keep being merged or rejected
  *      exactly as before. Verified zero collateral on gau / wayback / vulnweb
  *      / synth across all flag combos (real-world graphql GET URLs in those
- *      corpora: 0, so output is a strict superset only when a graphql GET is
+ *      inputs: 0, so output is a strict superset only when a graphql GET is
  *      present). RAM/throughput unchanged (one extra cheap O(qn) check per
  *      query-carrying line). This intentionally extends the v20 / v22 policy of
  *      tightly scoped default-mode keep-bias features over the byte-identical-
@@ -35,15 +35,15 @@
  *      file: keep it, its ?query is scanner noise) and in KX (known real ext).
  *      Output change vs v21 is a strict SUPERSET: .map URLs are now kept, no
  *      other line moves (verified on gau / wayback / vulnweb x all flags: the
- *      only diff is .map lines, 0 collateral; 781k corpus keeps +25 maps). This
+ *      only diff is .map lines, 0 collateral; 781k input keeps +25 maps). This
  *      intentionally breaks the -k/-x byte-identical-across-versions invariant
  *      for .map lines (keep-bias wins over exactness here, like v20's bare-fold
  *      did for default). RAM/throughput unchanged (one fewer static string).
  *
  * v21.0: memory overhaul of the default (deferred-emit) path, output BYTE-
- *      IDENTICAL to v20 on every flag and corpus. Peak RSS on a 1.1M-line
- *      wayback corpus drops 40.5 -> 25.3 MB (-38%); on a 781k corpus 22.5 ->
- *      14.0 MB (-37%). The cut grows with corpus size and throughput is
+ *      IDENTICAL to v20 on every flag and input. Peak RSS on a 1.1M-line
+ *      wayback input drops 40.5 -> 25.3 MB (-38%); on a 781k input 22.5 ->
+ *      14.0 MB (-37%). The cut grows with input size and throughput is
  *      unchanged (3.82 -> 3.79 s on the 1.1M run). Verified byte-identical
  *      across gau / wayback / vulnweb / subdomains x 14 flag combos (56/56)
  *      plus the empty / no-trailing-newline / pipe-vs-file / bare+subset-merge
@@ -111,7 +111,7 @@
  *      hard upper bound; without -L every run stays strictly exact.
  *
  * v18.9: memory overhaul, output identical in practice. Peak RSS on a 1.1M-line
- *      wayback corpus drops 61 MB -> 34 MB (-45%); the lead grows with corpus
+ *      wayback input drops 61 MB -> 34 MB (-45%); the lead grows with input
  *      size and now beats uro (63 MB), urless (68 MB) and urldedupe (569 MB) by
  *      a wide margin while KEEPING more surface than any of them. Three changes,
  *      none alter what is emitted on any real run (verified byte-identical to
@@ -122,7 +122,7 @@
  *          so its footprint roughly halves (it now holds only the emitted lines
  *          + the small query key-sets). This trades a byte-exact memcmp for
  *          hash-equality; the birthday-collision probability on a 10^6-line
- *          corpus is ~3.6e-27 (the content-addressing trust model git uses for
+ *          input is ~3.6e-27 (the content-addressing trust model git uses for
  *          object identity), i.e. the output is identical to exact compare in
  *          any run that will ever occur. -x/-k/-F all share the new path.
  *      (2) Slot 24->16 B (dropped a dead 'rec' field; the table is now a pure
@@ -145,7 +145,7 @@
  *      added to is_garbage()'s terminal-segment block (so it is !X gated: -x
  *      keeps the raw line). Scoped to the already-narrow content-hash shape, so
  *      ordinary endpoints are untouched, and the clean witness (...._P1) is still
- *      emitted, so each dropped line is a pure duplicate. On a real corpus this
+ *      emitted, so each dropped line is a pure duplicate. On a real input this
  *      removes 2 such lines (2378->2376) with ZERO other delta; vulnweb stays
  *      byte-identical to v18.6 on every flag.
  *
@@ -164,9 +164,9 @@
  *      is NOT folded (IDOR counters stay distinct), a pure uppercase-hex blob
  *      trims its label to len 0 and is rejected (that is the -F is_hex job), and
  *      a '.' or trailing letter after the id rejects it (never touch dotted).
- *      On a real recon corpus this folds 1361 such leaves to 301 witnesses
+ *      On a real recon input this folds 1361 such leaves to 301 witnesses
  *      (one per locale/version/device/suffix template) with ZERO non-matching
- *      collateral; corpora without the pattern (e.g. vulnweb) are byte-identical
+ *      collateral; inputs without the pattern (e.g. vulnweb) are byte-identical
  *      to v18.5 on every flag.
  *
  * v18.5: completed the media-noise asset list. The render-noise drop (on by
@@ -183,8 +183,8 @@
  *      make a bare numeric terminal (the WebObjects ".../0.3" page-id form)
  *      look like a truncated "3gp" and wrongly drop a real endpoint. Media
  *      never needs KX anyway (none is a strict prefix of a longer known ext).
- *      On a real 35k-line recon corpus this removes 1852 media lines (1819
- *      m4p) with ZERO non-media collateral. Output of corpora WITHOUT these
+ *      On a real 35k-line recon input this removes 1852 media lines (1819
+ *      m4p) with ZERO non-media collateral. Output of inputs WITHOUT these
  *      extensions (e.g. vulnweb) is unchanged; ts (TypeScript) was NOT added.
  *
  * v18.4: query-keyset merge is now SUBSET-only, never lossy. A query URL is
@@ -210,9 +210,9 @@
  *      byte-identical to v18.2 on gau/vulnweb/wb-full. Emitted lines are always
  *      real first-seen URLs (merge output is a strict subset of v18.2 default).
  *
- * v18.2: perf only, output BYTE-IDENTICAL to v18 on every flag and corpus
+ * v18.2: perf only, output BYTE-IDENTICAL to v18 on every flag and input
  *      (verified on gau/vulnweb/wb-full + synthetic repeat-artefact cases).
- *      Now FASTER than urldedupe on every corpus while still doing real dedup
+ *      Now FASTER than urldedupe on every input while still doing real dedup
  *      (gau 476ms->287ms vs urldedupe 335ms; lead widens with size). Three
  *      changes, none touch what is emitted:
  *      (1) repeat_junk got a sound 8-aligned word pre-filter. A qualifying
@@ -226,7 +226,7 @@
  *          pure OR of side-effect-free predicates, so order cannot change the
  *          result, only the cost).
  *
- * v18.1: perf only, output BYTE-IDENTICAL to v18 on every flag and corpus.
+ * v18.1: perf only, output BYTE-IDENTICAL to v18 on every flag and input.
  *      repeat_junk() was the #1 hotspot (~33% of runtime): for each period
  *      L=2..24 it called memcmp at every position, but almost all positions
  *      mismatch on byte 0. Added a single-byte gate s[i]==s[i+L] before the
@@ -271,11 +271,11 @@
  *      never matches versions/words (v2, oauth2, mp3, utf8, sha256, a year),
  *      and preserving the stem keeps admin- vs user- ids distinct, so no
  *      route is destroyed. Output is BYTE-IDENTICAL to v14/v15/v16 on all
- *      four published corpora (synth/wb/gau/vulnweb - they hold no non-uuid
+ *      four published inputs (synth/wb/gau/vulnweb - they hold no non-uuid
  *      mixed-id of this shape; uuids are still caught earlier by 'U'), so the
  *      published quality numbers and the line-by-line audit carry over
- *      unchanged. The new fold only manifests on corpora that DO contain the
- *      shape (e.g. /blah/U-61723A/...); any re-benchmark on such a corpus
+ *      unchanged. The new fold only manifests on inputs that DO contain the
+ *      shape (e.g. /blah/U-61723A/...); any re-benchmark on such a input
  *      must re-validate quality. Still single-pass / O(distinct sigs) RAM /
  *      O(seg)/line - mixed_id_stem is a cold branch after id_stem fails.
  *
@@ -292,14 +292,14 @@
  *      /api/get-user-settings stay distinct (parent 'api' is not a content
  *      section), so no route is destroyed - one representative per content
  *      route is KEPT, never deleted. This CHANGES output vs v14/v15 on
- *      corpora containing digit-less content slugs, so the v15
+ *      inputs containing digit-less content slugs, so the v15
  *      "byte-identical to v14" claim no longer covers v16: quality numbers
  *      and the line-by-line audit must be re-validated before re-publishing.
  *      Still strictly single-pass / O(distinct signatures) RAM / no survivor
  *      buffering; the gate is O(1) over a fixed word list on leaf segments.
  *
  * v15: speed overhaul to hold the Pareto frontier on wall time too. The Q1
- *      synthetic-corpus measurement (D_synth.full, 45410 lines, frozen rig)
+ *      synthetic-input measurement (D_synth.full, 45410 lines, frozen rig)
  *      had urldedupe at 0.164s and xcull at 0.214s - urldedupe winning the
  *      Execution Time column by 50 ms. Hand-instrumented the xcull hot path:
  *      the per-byte locale-aware tolower(3) on the path lowering loop
@@ -332,7 +332,7 @@
  *        - setvbuf(stdin/stdout, 1 MB) so getline()/fwrite() amortise
  *          syscall overhead over million-byte blocks instead of the
  *          default 4 KB.
- *      Output is byte-identical to v14 across all 4 corpora (synth +
+ *      Output is byte-identical to v14 across all 4 inputs (synth +
  *      D_example_wb + D_example_gau + D_vulnweb) - the audit verdict
  *      (zero real attack surface lost) stands unchanged. See README.md
  *      and xcull-benchmark/BENCHMARK.md for the published wall/RSS
@@ -340,7 +340,7 @@
  *
  * v14: published de-identified Q1 re-benchmark (D_example_*) hand-audited
  *      xcull's per-cell lost lines line by line. The de-identified gau
- *      corpus exposed one REAL destruction that v13 was making and the
+ *      input exposed one REAL destruction that v13 was making and the
  *      v13 AUDIT.md had mis-classified: the embedded-domain spam gate
  *      destroyed qeif.tv.example.com/qeif/p1/dc/pqawjqix (de-id form
  *      qeif.tv.example.com/qeif/p1/dc/pqawjqix), a genuine authenticated
@@ -411,12 +411,12 @@
  *          xcull keeps one templated signature per UNIQUE structural class,
  *          so peak RSS is O(distinct signatures), not constant. Measured
  *          on the frozen Q1 rig: 18.3 MB peak on the 781398-line
- *          wayback corpus (124975 unique signatures). It is still by far
+ *          wayback input (124975 unique signatures). It is still by far
  *          the lowest-RSS tool that is not a trivial passthrough, and
  *          still single-pass with no per-line/cross-line buffering - that
  *          (O(unique) not O(input)) is the win - but it is not "constant".
  *
- * v12: real per-line pentester audit on the gau + wayback corpora
+ * v12: real per-line pentester audit on the gau + wayback inputs
  *      (44943 / 634k lines) exposed THREE genuine source defects - all
  *      destructive (real attack surface silently dropped), all fixed at
  *      source, still strictly single-pass / O(1)-extra-RAM, NO buffering:
@@ -442,7 +442,7 @@
  *          still rejected. wayback keeps 28 ;jsessionid= endpoints
  *          that uro and urless both destroy (0).
  *        - host_embeds_domain(): "any interior public-suffix label"
- *          false-positived legitimate deep corporate DNS - the corpus's
+ *          false-positived legitimate deep corporate DNS - the input's
  *          www.en.xect.example.com (204 lines, the whole the .woa app app),
  *          zfqyyxa.en.xect.example.com, qko07.info.example.com (116 lines,
  *          8 store .woa) were DROPPED because uk/info are in the suffix
@@ -464,7 +464,7 @@
  *          (drop last segment). But its ignored_suffixes deletes EVERY
  *          .js .json .txt .xml .zip .pdf .doc(x) - it silently lost
  *          swagger.json, the .js and robots.txt on testinvicti. It
- *          also buffers the whole corpus (O(n^2), the 21-min path).
+ *          also buffers the whole input (O(n^2), the 21-min path).
  *        - urless gets /blog -> 0 via a hardcoded keyword BLACKLIST
  *          "blog,article,news,..." - it deletes ANY path containing
  *          those words (it also nuked Blogs.aspx) and emits a trailing
@@ -479,7 +479,7 @@
  *      robots.txt, Blogs.aspx, process.bak are ALL kept. testinvicti
  *      163 -> 35, blog 36->1, 0 garbage, 0 blank, nothing real lost -
  *      and xcull is the ONLY tool that keeps swagger.json + .js +
- *      robots.txt while still collapsing blog to one. vulnweb corpus
+ *      robots.txt while still collapsing blog to one. vulnweb input
  *      1354 -> 1354 UNCHANGED (the rule is strict enough that the
  *      regression set has no false slug), every finding count / 53
  *      distinct .js / 0 dups identical, all garbage hunts still 0.
@@ -605,7 +605,7 @@
 
 /* ---------- ASCII lowercase LUT (v15: tolower hot-path replacement) ---------- *
  * tolower(3) is locale-aware (TLS lookup + per-call dispatch on glibc). On the
- * synthetic corpus the per-line path-lowering loop was the single largest hot
+ * synthetic input the per-line path-lowering loop was the single largest hot
  * spot. URLs are ASCII by RFC; a 256-byte branch-free LUT folds A-Z to a-z and
  * passes everything else through, which is what xcull's path/host/scheme
  * lowering already wanted (the surrounding code never touched non-ASCII bytes
@@ -644,7 +644,7 @@ static size_t arena_put(const char *s, size_t n) {
     if (arena_len + n > arena_cap) {
         while (arena_len + n > arena_cap) arena_cap = arena_cap ? arena_cap * 2 : (1u << 20);
         /* offsets are stored as uint32 (Slot/Rec/GSlot), so the arena is
-         * capped at 4 GB; recon corpora never approach this (155 MB input
+         * capped at 4 GB; recon inputs never approach this (155 MB input
          * -> ~38 MB arena). Fail loud rather than silently truncate. */
         if (arena_cap > 0xFFFFFFFFull) {
             fprintf(stderr,"xcull: dedup arena would exceed 4 GB; "
@@ -659,9 +659,9 @@ static size_t arena_put(const char *s, size_t n) {
  * The dedup set is keyed on a 128-bit hash of the signature instead of the
  * signature bytes, so the arena no longer has to store a copy of every sig
  * (it now holds only the emitted lines + the small query key-sets, ~halving
- * peak RSS on large corpora). Two FNV-1a lanes with distinct basis+prime are
+ * peak RSS on large inputs). Two FNV-1a lanes with distinct basis+prime are
  * each run through a splitmix64 avalanche finaliser to decorrelate them. The
- * birthday-collision probability for a 10^6-line corpus is ~3.6e-27, so the
+ * birthday-collision probability for a 10^6-line input is ~3.6e-27, so the
  * output is identical to a byte-exact compare in any run that will ever occur
  * - the same content-addressing trust model git uses for object identity. */
 static inline unsigned long long mix64(unsigned long long x){
@@ -1346,7 +1346,7 @@ static int glued_tld(const char*s,size_t n){
  *     index 1, k-3=2, NOT a suffix at k-3) is therefore untouched;
  *   - NAME (index k-4) is a real registrable second-level name: letters/
  *     hyphen, NO digit. Auto-generated corporate host labels carry digits
- *     (the corpus's qko07.info.example.com, q1837.sftkto.example.com,
+ *     (the input's qko07.info.example.com, q1837.sftkto.example.com,
  *     o06.wieyxo.example.com) and are REAL distinct surface - kept;
  *   - every deeper prefix label is exactly "www" (re-rooted SEO-spam is
  *     www.<embedded-domain>.<apex>; a genuine multi-level subdomain such

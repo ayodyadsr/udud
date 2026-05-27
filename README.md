@@ -25,7 +25,7 @@
 
 ## Abstract
 
-Large-scale reconnaissance pipelines generate millions of URLs that require canonicalization prior to downstream security analysis [1], [6], [27], [28]. Traditional URL deduplication tools prioritize high reduction ratios and storage efficiency, which introduces an operational trade-off by discarding unique parameter structures and security-relevant endpoints [2], [8], [29]. This repository evaluates **xcull**, a C-based, security-aware URL canonicalization engine, against four industry baselines, including `urldedupe`, `uro`, `urless`, and `uddup`. The evaluation utilizes a single labeled corpus (`D_unified.full`, 780,200 URLs across 55,920 canonical endpoint groups whose correct groupings are recorded in ground truth) so that throughput, memory consumption, attack-surface retention, and false merge rate are all measured on the same input [3], [10], [12], [42]. Experimental benchmarks demonstrate that **xcull** sustains a peak memory footprint of **22.6 MB** through fixed-size lookahead mmap buffers [16], [30] and a peak throughput of **451,000 URLs/sec**, finishing the 780,200-URL corpus in 1.73 s on a single core. In comparative testing on the same input, **xcull** retains **100%** of canonical endpoint groups and achieves a **0% false merge rate**, outperforming reduction-optimized tools in asset preservation without increasing infrastructural overhead [20], [40].
+Large-scale reconnaissance pipelines generate millions of URLs that require canonicalization prior to downstream security analysis [1], [6], [27], [28]. Traditional URL deduplication tools prioritize high reduction ratios and storage efficiency, which introduces an operational trade-off by discarding unique parameter structures and security-relevant endpoints [2], [8], [29]. This repository evaluates **xcull**, a C-based, security-aware URL canonicalization engine, against four industry baselines, including `urldedupe`, `uro`, `urless`, and `uddup`. The evaluation utilizes a single labeled URL set (`D_unified.full`, 780,200 URLs across 55,920 canonical endpoint groups whose correct groupings are recorded in ground truth) so that throughput, memory consumption, attack-surface retention, and false merge rate are all measured on the same input [3], [10], [12], [42]. Experimental benchmarks demonstrate that **xcull** sustains a peak memory footprint of **22.6 MB** through fixed-size lookahead mmap buffers [16], [30] and a peak throughput of **451,000 URLs/sec**, finishing the 780,200 URLs in 1.73 s on a single core. In comparative testing on the same input, **xcull** retains **100%** of canonical endpoint groups and achieves a **0% false merge rate**, outperforming reduction-optimized tools in asset preservation without increasing infrastructural overhead [20], [40].
 
 ---
 
@@ -72,7 +72,7 @@ The experimental testing matrix relies on four core operational metrics derived 
 
 ## 2.3 Experimental Conditions
 
-The evaluation dataset was constructed utilizing a large-scale multi-domain corpus containing highly redundant directory structures, complex multi-tier query parameters, stateful object routing IDs, uniform resource locator ambiguities, and modern multi-tenant endpoint structures [1], [10], [42], [45]. Each tool was executed inside an isolated benchmarking container under equivalent hardware allocations, running exclusively in standard default operating modes to maintain structural fairness [20].
+The evaluation dataset was constructed utilizing a large-scale multi-domain set of URLs containing highly redundant directory structures, complex multi-tier query parameters, stateful object routing IDs, uniform resource locator ambiguities, and modern multi-tenant endpoint structures [1], [10], [42], [45]. Each tool was executed inside an isolated benchmarking container under equivalent hardware allocations, running exclusively in standard default operating modes to maintain structural fairness [20].
 
 ---
 
@@ -80,11 +80,11 @@ The evaluation dataset was constructed utilizing a large-scale multi-domain corp
 
 ## 3.1 Performance and Resource Analysis
 
-The complete performance metrics across all evaluated URL deduplication engines are detailed below. A single labeled corpus is used: `D_unified.full` carries 780,200 URLs across 55,920 canonical endpoint groups whose correct groupings are recorded in ground truth. Every metric in this section, including the false merge rate, is measured on that same input.
+The complete performance metrics across all evaluated URL deduplication engines are detailed below. A single labeled URL set is used: `D_unified.full` carries 780,200 URLs across 55,920 canonical endpoint groups whose correct groupings are recorded in ground truth. Every metric in this section, including the false merge rate, is measured on that same input.
 
 **Input → Output (raw URL counts after dedup):**
 
-| Corpus (Input URLs) | `xcull` | `urldedupe` | `uro` | `urless` | `uddup` |
+| URLs file (Input URLs) | `xcull` | `urldedupe` | `uro` | `urless` | `uddup` |
 |---|---:|---:|---:|---:|---:|
 | `D_unified.full` (780,200) | **115,764** | 380,650 | 64,667 | 64,138 | DNF (>600 s) |
 
@@ -104,7 +104,7 @@ How to read: xcull took 780,200 input URLs and emitted 115,764 (kept 14.8%, drop
 
 ## 3.2 Memory Scalability
 
-On the 780,200-URL `D_unified.full` corpus, `xcull` held peak resident memory at 22.6 MB, the lowest among the tools that completed the run. The next-smallest peak (`uro`, 27.6 MB) is 1.22x heavier and reaches it by folding away whole endpoint classes; `urldedupe` reaches 193.8 MB by keeping a per-URL hash table for the near-passthrough output, and `uddup` does not complete the run at all because its working set grows with the square of the input. The underlying engine optimizes heap utilization through fixed-size lookahead buffers and arena allocation strategies [16], [30], so memory consumption scales with active parameter state trees rather than raw input block size [17], [31]. Competitive engines demonstrated linear or super-linear memory expansion patterns under the same input due to unoptimized heap allocation [18], [19], [32], [33].
+On the 780,200-URL `D_unified.full` input, `xcull` held peak resident memory at 22.6 MB, the lowest among the tools that completed the run. The next-smallest peak (`uro`, 27.6 MB) is 1.22x heavier and reaches it by folding away whole endpoint classes; `urldedupe` reaches 193.8 MB by keeping a per-URL hash table for the near-passthrough output, and `uddup` does not complete the run at all because its working set grows with the square of the input. The underlying engine optimizes heap utilization through fixed-size lookahead buffers and arena allocation strategies [16], [30], so memory consumption scales with active parameter state trees rather than raw input block size [17], [31]. Competitive engines demonstrated linear or super-linear memory expansion patterns under the same input due to unoptimized heap allocation [18], [19], [32], [33].
 
 ---
 
@@ -112,7 +112,7 @@ On the 780,200-URL `D_unified.full` corpus, `xcull` held peak resident memory at
 
 The aggressive, rule-based text normalization logic used within `uro` and `urless` relies on traditional Locality-Sensitive Hashing (LSH) and MinHash similarity estimation [15], [29]. This approach frequently misidentified custom parameter routing flags and object arrays as redundant keys [7]. On `D_unified.full` this behavior collapsed whole endpoint classes: `uro` destroyed every JSESSIONID group, every title-slug group, and every UUID group (1,248 canonical groups removed, 2.23% false merge rate), and `urless` destroyed every JSESSIONID group and every title-slug group (1,777 canonical groups removed, 3.18% false merge rate).
 
-The C-based architecture of `xcull` demonstrated a high resistance to destructive merging errors. It retained 100% of the 55,920 canonical endpoint groups in the corpus while restricting the total false merge rate to 0%. Detailed inspection of the preserved outputs confirmed the retention of state-specific endpoints and object-ID vectors, which are essential inputs for downstream automated access control validation systems and dynamic logical verification workflows [4], [22], [34], [43].
+The C-based architecture of `xcull` demonstrated a high resistance to destructive merging errors. It retained 100% of the 55,920 canonical endpoint groups in the input URLs while restricting the total false merge rate to 0%. Detailed inspection of the preserved outputs confirmed the retention of state-specific endpoints and object-ID vectors, which are essential inputs for downstream automated access control validation systems and dynamic logical verification workflows [4], [22], [34], [43].
 
 ---
 
@@ -128,9 +128,9 @@ The empirical data gathered during this study reveals that optimizing URL canoni
 
 This study executed a comparative performance evaluation between `xcull` and established URL deduplication frameworks used within active reconnaissance systems. Experimental benchmarks confirm that `xcull` yields:
 
-- The highest throughput at 451,000 URLs/sec on the 780,200-URL `D_unified.full` corpus, finishing in 1.73 s on a single core
+- The highest throughput at 451,000 URLs/sec on the 780,200-URL `D_unified.full` input, finishing in 1.73 s on a single core
 - The lowest peak memory footprint at 22.6 MB on the same run
-- 100% retention of all 55,920 canonical endpoint groups in the corpus
+- 100% retention of all 55,920 canonical endpoint groups in the input URLs
 - A 0% false merge rate on the same labeled input
 
 These measurements validate that executing security-preserving URL canonicalization does not require sacrificing pipeline speed or increasing hardware costs. Future research directions will explore extending the engine's compilation parsing rules to support adaptive graph-based microservice boundaries [25], [26], [41], nested API endpoint routing protocols, and dynamic automated token discovery schema [23], [44].
@@ -238,7 +238,7 @@ These measurements validate that executing security-preserving URL canonicalizat
 >
 > It is **not** the benchmark.
 >
-> Full reproducible benchmark on a single 780,200-URL labeled corpus
+> Full reproducible benchmark on a single 780,200-URL labeled set
 > (`D_unified.full`, 55,920 canonical endpoint groups recorded in ground
 > truth), with peak RSS, throughput, completion time, false merge rate,
 > per-class PRF, and every CSV behind every claim, lives in a separate repo:
