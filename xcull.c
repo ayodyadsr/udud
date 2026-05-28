@@ -1313,8 +1313,6 @@ static void print_help(int all){
 "        Default run: clean one archive feed, every distinct id kept.\n"
 "  cat gau.txt wayback.txt katana.txt | xcull | tee urls.txt\n"
 "        Merge multiple sources and dedupe once.\n"
-"\n"
-"Per flag:\n"
 "  cat urls.txt | xcull -F\n"
 "        -F  fold ids to one route witness (route-scan pass).\n"
 "  cat urls.txt | xcull -x\n"
