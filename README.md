@@ -130,12 +130,16 @@ The normal case is a one-line pipe with no flags.
 cat urls.txt | xcull
 ```
 
-The full flag list (run `man xcull` after install for the long form):
+Run `xcull --help` for the option list, `xcull --help all` for usage
+examples and exit codes, or `man xcull` for the full reference. The
+full flag list:
 
 ```
 usage: xcull [-F fold-ids][-x keep-invalid][-a keep-assets]
              [-s case-sensitive][-L N subset-cmp cap]
              [-k][-p][-W][-r][-V]
+       xcull {-h | --help [all]}
+       xcull --version
 
   -F     fold object-ids (numeric/UUID/hex/stem-id segments collapse
          to one witness). Default keeps every distinct id; -F is the
@@ -155,6 +159,8 @@ usage: xcull [-F fold-ids][-x keep-invalid][-a keep-assets]
   -W     opt out of wayback-noise handling.
   -r     opt out of URL canonicalization.
   -V     print "xcull: <in> -> <out> (peak RSS <n> KB)" to stderr.
+  -h, --help   print the option list (--help all adds examples and
+               exit codes); --version prints the version and exits.
 ```
 
 ## Running xcull

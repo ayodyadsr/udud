@@ -1,4 +1,4 @@
-.TH XCULL 1 "2026-05-27" "xcull 1.0.1" "User Commands"
+.TH XCULL 1 "2026-05-28" "xcull 1.1.0" "User Commands"
 .SH NAME
 xcull \- security-aware URL deduplicator for recon pipelines
 .SH SYNOPSIS
@@ -14,6 +14,12 @@ xcull \- security-aware URL deduplicator for recon pipelines
 .RB [ \-W ]
 .RB [ \-r ]
 .RB [ \-V ]
+.br
+.B xcull
+.RB { \-h | \-\-help " [" all ] }
+.br
+.B xcull
+.B \-\-version
 .SH DESCRIPTION
 .B xcull
 reads URLs from standard input, one per line, and writes a deduplicated
@@ -84,6 +90,16 @@ other RFC 3986 normalisations are not applied.
 Verbose mode. Writes
 .I xcull: <in> -> <out>  (peak RSS <n> KB)
 to standard error at end of run. Stdout still carries the URLs.
+.TP
+.BR \-h ", " \-\-help " [" all ]
+Print a short help to standard output and exit. With the optional
+.I all
+argument
+.RB ( "xcull \-\-help all" " or " "xcull \-h all" )
+the help also lists usage examples and the exit-code table.
+.TP
+.B \-\-version
+Print the version string to standard output and exit.
 .SH EXAMPLES
 .PP
 Clean recon surface from an archive feed:

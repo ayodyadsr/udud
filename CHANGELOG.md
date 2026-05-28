@@ -4,6 +4,15 @@ User-visible release log. For the verification matrix behind each entry
 (which inputs and flag combinations were checked), follow the
 corresponding tag in git history.
 
+## v24.0 - help and version flags
+Add a curl-style help system. `xcull --help` (or `-h`) prints the option
+list to stdout and exits 0; `xcull --help all` (or `-h all`) appends usage
+examples and the exit-code table; `xcull --version` prints the version.
+A bare invocation on a terminal now prints a one-line "pipe URLs in" hint
+instead of silently blocking on the TTY, and an unknown flag points at
+`--help`. Dedup output is byte-identical to v23 for every flag and input;
+this release only adds the help/version surface.
+
 ## v23.0 - GraphQL queries
 Keep distinct GraphQL `?query={...}` values. Previously the literal
 braces hit the byte-rejection gate and the whole URL was dropped as

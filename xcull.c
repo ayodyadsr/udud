@@ -23,6 +23,8 @@
 #include <unistd.h>
 #include <sys/resource.h>
 
+#define XCULL_VERSION "1.1.0"
+
 /* ---------- ASCII lowercase LUT (v15: tolower hot-path replacement) ---------- *
  * tolower(3) is locale-aware (TLS lookup + per-call dispatch on glibc). On the
  * synthetic input the per-line path-lowering loop was the single largest hot
@@ -1277,11 +1279,71 @@ static size_t query_keys(const char*q,size_t n,char*out,size_t cap){
         for(size_t z=0;z<kl[a]&&o<cap;z++)out[o++]=ks[a][z]; pv=ks[a]; pl=kl[a]; }
     return o; }
 
+/* curl-style help: -h / --help prints the short form, --help all (or
+ * -h all) appends examples and exit codes. Help goes to stdout (exit 0)
+ * so it can be piped; the unknown-flag path stays on stderr (exit 2). */
+static void print_help(int all){
+    fputs(
+"Usage: xcull [options] < urls.txt\n"
+"\n"
+"Dedup a recon URL surface on stdin and write the kept set to stdout.\n"
+"Keep-biased and security-aware: distinct object ids and session tokens\n"
+"survive, query dedup is keyed on parameter shape, render and scanner\n"
+"noise is dropped. Pairs with gau, waybackurls, katana, qsreplace, anew.\n"
+"\n"
+"Options:\n"
+" -F              Fold object ids to one route witness (route discovery)\n"
+" -x              Keep invalid URLs raw (disable the garbage gate)\n"
+" -a              Keep all assets (.css .png .woff .mp4 and other media)\n"
+" -s              Case-sensitive path matching (/Login distinct from /login)\n"
+" -L <N>          Cap subset-merge comparisons per record (0 = off, default)\n"
+" -k              Keep parameter values and every distinct query key-set\n"
+" -p              No path templating (every literal path survives)\n"
+" -W              Disable wayback host-glue handling\n"
+" -r              Disable URL canonicalization (RFC 3986)\n"
+" -V              Verbose: write \"<in> -> <out>  (peak RSS)\" to stderr\n"
+" -h, --help      Show this help (use \"--help all\" for examples)\n"
+"     --version   Show version number and quit\n",
+    stdout);
+    if(all){
+        fputs(
+"\n"
+"Examples:\n"
+"  gau example.com | xcull > surface.txt\n"
+"        Clean a single archive feed.\n"
+"  cat gau.txt wayback.txt katana.txt | xcull | tee urls.txt\n"
+"        Merge multiple sources and dedupe once.\n"
+"  gau example.com | xcull | qsreplace FUZZ | anew params.txt\n"
+"        Feed a parameter-fuzzing pipeline.\n"
+"  cat urls.txt | xcull -F\n"
+"        Collapse ids to one route witness for a route-scan pass.\n"
+"  cat urls.txt | xcull -V > out.txt\n"
+"        Show the reduction (stats on stderr, data still on stdout).\n"
+"\n"
+"Exit codes:\n"
+"  0   Success.\n"
+"  1   I/O error, allocation failure, or out of memory.\n"
+"  2   Unknown flag or malformed argument.\n",
+        stdout);
+    } else {
+        fputs(
+"\n"
+"Use \"xcull --help all\" for examples and exit codes, or \"man xcull\".\n",
+        stdout);
+    }
+    fputs("\nProject: https://github.com/xcull/xcull\n", stdout);
+}
+
 int main(int argc,char**argv){
     int F=1,S=0,K=0,P=0,W=1,C=1,V=0,X=0,FI=0,c; /* clean defaults: sanity gate +
                                        noise-filter + case-fold + wayback +
                                        canonical (X=0 means gate ENABLED).
                                        FI=0: object-ids PRESERVED (v18) */
+    /* long options handled before getopt: -h / --help [all], --version. */
+    for(int i=1;i<argc;i++){
+        if(!strcmp(argv[i],"-h")||!strcmp(argv[i],"--help")){
+            print_help((i+1<argc)&&!strcmp(argv[i+1],"all")); return 0; }
+        if(!strcmp(argv[i],"--version")){ puts("xcull " XCULL_VERSION); return 0; } }
     while((c=getopt(argc,argv,"fkpwcWrasxVFL:"))!=-1){
         if(c=='k')K=1; else if(c=='p')P=1;
         else if(c=='a')F=0;                          /* keep ALL assets */
@@ -1292,10 +1354,14 @@ int main(int argc,char**argv){
         else if(c=='W')W=0; else if(c=='r')C=0;      /* opt-outs */
         else if(c=='f'||c=='w'||c=='c'){ /* legacy no-ops (already default) */ }
         else if(c=='V')V=1;
-        else { fprintf(stderr,
-          "usage: xcull [-F fold-ids][-x keep-invalid][-a keep-assets]"
-          "[-s case-sensitive][-L N subset-cmp cap][-k][-p][-W][-r][-V]\n");
+        else { fprintf(stderr,"Try 'xcull --help' for the full option list.\n");
           return 2; } }
+    if(isatty(STDIN_FILENO)){
+        fprintf(stderr,
+          "xcull: no input on stdin (it is a terminal).\n"
+          "Pipe URLs in, e.g.  gau example.com | xcull\n"
+          "Run 'xcull --help' for options.\n");
+        return 2; }
     lo_init();
     /* v15: 64 KB output stdio buffer so fwrite() amortises syscalls. Input
      * is read with our own block reader below - bypasses getline()'s per-
