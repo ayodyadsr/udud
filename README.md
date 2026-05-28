@@ -22,6 +22,7 @@
   <a href="#usage">Usage</a> ·
   <a href="#running-xcull">Running xcull</a> ·
   <a href="#examples">Examples</a> ·
+  <a href="#flag-use-cases">Flag use cases</a> ·
   <a href="#output">Output</a> ·
   <a href="#pipeline-integration">Pipelines</a> ·
   <a href="#benchmark">Benchmark</a> ·
@@ -200,6 +201,8 @@ same input produce byte-identical output.
 
 ## Examples
 
+A few common shapes; per-flag use cases follow in the next section.
+
 ```sh
 # clean recon surface from an archive feed
 gau example.com | xcull > surface.txt
@@ -220,38 +223,198 @@ gau example.com | xcull | qsreplace FUZZ | anew params.txt
 cat urls.txt | xcull -V > deduped.txt
 ```
 
+## Flag use cases
+
+Each flag has a narrow purpose. The default mode is the answer 90% of
+the time; reach for a flag only when its specific use case applies.
+
+### Default (no flags)
+
+**When:** the normal recon pass. Stream an archive feed or crawler
+output through xcull and pipe the cleaned set to whatever consumes URLs
+next.
+
 ```sh
-# structural dedup only, skip the cleaning
-cat urls.txt | xcull -x
+gau example.com | xcull > urls.txt
+```
+
+In default mode every distinct object id (`/user/41`, `/user/42`),
+session token (`;jsessionid=...`), and GraphQL operation
+(`?query={me{id}}`) survives, query URLs merge only by subset
+relation, render-noise assets are dropped, and wayback / scanner-probe
+junk is filtered.
+
+### `-F` fold object ids (route discovery)
+
+**When:** you want one witness per endpoint pattern, not per object.
+Useful for a route-scan pass where the concrete IDs are noise.
+
+```sh
+gau example.com | xcull -F > routes.txt
+```
+
+Input:
+
+```
+https://example.com/user/41
+https://example.com/user/42
+https://example.com/user/43
+https://example.com/file/550e8400-e29b-41d4-a716-446655440000
+https://example.com/file/6ba7b810-9dad-11d1-80b4-00c04fd430c8
+```
+
+Default output keeps all five (so IDOR / BOLA enumeration sees every
+id). `-F` collapses each id class to one witness, leaving two lines
+(one `/user/<N>`, one `/file/<UUID>`). Standard recon pattern: run
+default first for the IDOR pass, then re-run with `-F` for route
+coverage.
+
+### `-x` keep invalid URLs (forensic / debug)
+
+**When:** you suspect the default cleaner is dropping something it
+should keep, or you want to audit the raw structural dedup without any
+sanity gate.
+
+```sh
+cat dirty.txt | xcull -x > raw_dedup.txt
+```
+
+`-x` disables the garbage gate (glued TLDs, embedded-domain probes,
+malformed bytes, scanner artifacts) but keeps the structural dedup
+itself. Use it side-by-side with a default run to see which lines were
+classified as junk.
+
+```sh
+diff <(cat dirty.txt | xcull) <(cat dirty.txt | xcull -x) | less
+```
+
+### `-a` keep all assets (source maps, JS, secrets-in-static)
+
+**When:** you are hunting for secrets in JS bundles, source maps, or
+static config files that the default render-noise filter would drop.
+
+```sh
+gau example.com | xcull -a | grep -E '\.(js|map|json|env)$'
+```
+
+Default drops `.css .png .woff .mp4 .mp3 .m4p .svg .ico` and the rest
+of the static-render extensions. `-a` keeps them. Note: `.map` URLs
+are kept under the default too (source maps disclose unminified source
+and are a standing recon finding), so reach for `-a` mainly for the
+other static classes.
+
+### `-s` case-sensitive path matching
+
+**When:** the target runs on a case-sensitive backend (Java/JSP, some
+Python/Node frameworks) where `/Admin` and `/admin` are distinct
+routes.
+
+```sh
+cat urls.txt | xcull -s
+```
+
+Default folds path case, so `/Login` and `/login` collide into one
+witness. `-s` keeps them separate. On Apache/IIS/PHP targets the
+default is what you want.
+
+### `-L N` cap subset-merge comparisons (adversarial input)
+
+**When:** the input has a single endpoint accumulating thousands of
+distinct query key-sets (a fuzzer dump, a telemetry log, a
+cache-buster spam). The default subset-merge is O(K) per insert into a
+bucket; an adversarial multi-cardinality antichain can still cost real
+time.
+
+```sh
+cat fuzzer_dump.txt | xcull -L 100 -V
+```
+
+`-L N` caps comparisons per inserted record at `N`. When the cap
+trips, the record is kept un-merged (output may differ from a full
+run; this is a safety valve, not a quality knob). `0` (default) means
+no cap.
+
+### `-k` keep param values and every distinct key-set (value mining)
+
+**When:** you are mining parameter values, not endpoints. You want to
+see every concrete value of `?role=`, `?env=`, `?debug=`, and you
+don't want xcull's query-subset merge to collapse anything.
+
+```sh
+gau example.com | xcull -k | grep -oE '\?[a-z_]+=[^&]+' | sort -u
 ```
 
 ```sh
-# keep every distinct object id for IDOR / BOLA enumeration (default)
-# /user/41 and /user/42 both survive
-cat urls.txt | xcull
+# look for admin / debug / staging param values
+gau example.com | xcull -k | grep -iE '\?(role|env|debug|admin)='
+```
+
+Default merges `/page?id=1` and `/page?id=2` into one witness because
+the key-set is identical. `-k` keeps both, including the values. As a
+side effect, `-k` also restores streaming output (no deferred emit),
+so it is the lowest-RSS mode.
+
+### `-p` no path templating (literal paths)
+
+**When:** the target's path segments are meaningful, not templated.
+Docs sites, content portals, knowledge bases where `/docs/install`
+and `/docs/config` are distinct content, not slugs of the same route.
+
+```sh
+gau docs.example.com | xcull -p > docs_paths.txt
+```
+
+Default folds title-slug groups (`/blog/<slug>` collapses to one
+witness). `-p` disables every path template, including the slug fold.
+Use it when you would rather hand off the full path inventory to a
+doc-aware scanner.
+
+### `-W` opt out of wayback-noise handling
+
+**When:** the input is from a live crawl (katana, hakrawler, hand
+recon) and not from wayback, so the wayback-noise heuristics are
+overhead with nothing to match. Or, the input IS wayback but you want
+to keep scanner-artifact URLs (e.g., to study prior attacker activity
+recorded by the archive).
+
+```sh
+katana -u https://example.com -silent | xcull -W
 ```
 
 ```sh
-# collapse object ids to one endpoint witness, for route discovery
-# /user/41 and /user/42 both fold to one line
-cat urls.txt | xcull -F
+# keep wayback's scanner probes (for threat-intel work)
+waybackurls example.com | xcull -W | grep -E '(\.\./|/etc/passwd|<script>)'
+```
+
+### `-r` opt out of URL canonicalization
+
+**When:** you need byte-exact comparison with another tool, the input
+is already RFC 3986 normalized, or you are debugging an encoding issue
+xcull's canonicaliser might be hiding.
+
+```sh
+cat urls.txt | xcull -r | diff - <(cat urls.txt | xcull)
+```
+
+Default applies percent-decode for safe bytes, normalises default
+ports, lowercases hosts, and resolves `.` / `..` segments. `-r`
+disables all of that and emits the first-seen line verbatim.
+
+### `-V` verbose stats (CI, monitoring)
+
+**When:** you want a one-line summary of the run (input lines, output
+lines, peak RSS) for logs, CI, or a quick sanity check. Stdout is
+unchanged, so `-V` is safe to leave on in production pipelines.
+
+```sh
+gau example.com | xcull -V > urls.txt 2>> xcull.log
 ```
 
 ```sh
-# keep every distinct session token (default)
-# /app/dashboard;jsessionid=A and /app/dashboard;jsessionid=B both survive
-cat urls.txt | xcull
-```
-
-```sh
-# keep every distinct GraphQL operation
-# ?query={me{id}} and ?query={users{role}} both survive
-cat urls.txt | xcull
-```
-
-```sh
-# disable query subset merge, keep every key-set as its own line
-cat urls.txt | xcull -k
+# CI assertion: dedup ratio should be at least 5x
+in=$(wc -l < urls.txt)
+out=$(xcull -V < urls.txt 2>&1 > deduped.txt | awk '{print $4}')
+test $(( in / out )) -ge 5 || { echo "dedup too weak"; exit 1; }
 ```
 
 ## Output
