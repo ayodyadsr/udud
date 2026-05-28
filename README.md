@@ -249,10 +249,6 @@ junk is filtered.
 **When:** you want one witness per endpoint pattern, not per object.
 Useful for a route-scan pass where the concrete IDs are noise.
 
-```sh
-gau example.com | xcull -F > routes.txt
-```
-
 Input:
 
 ```
@@ -263,11 +259,30 @@ https://example.com/file/550e8400-e29b-41d4-a716-446655440000
 https://example.com/file/6ba7b810-9dad-11d1-80b4-00c04fd430c8
 ```
 
-Default output keeps all five (so IDOR / BOLA enumeration sees every
-id). `-F` collapses each id class to one witness, leaving two lines
-(one `/user/<N>`, one `/file/<UUID>`). Standard recon pattern: run
-default first for the IDOR pass, then re-run with `-F` for route
-coverage.
+Default output (all five survive, so IDOR / BOLA enumeration sees
+every id):
+
+```
+https://example.com/user/41
+https://example.com/user/42
+https://example.com/user/43
+https://example.com/file/550e8400-e29b-41d4-a716-446655440000
+https://example.com/file/6ba7b810-9dad-11d1-80b4-00c04fd430c8
+```
+
+With `-F` (each id class collapses to one witness):
+
+```
+https://example.com/user/41
+https://example.com/file/550e8400-e29b-41d4-a716-446655440000
+```
+
+Standard recon pattern: run default first for the IDOR pass, then
+re-run with `-F` for route coverage.
+
+```sh
+gau example.com | xcull -F > routes.txt
+```
 
 ### `-x` keep invalid URLs (forensic / debug)
 
@@ -275,14 +290,33 @@ coverage.
 should keep, or you want to audit the raw structural dedup without any
 sanity gate.
 
-```sh
-cat dirty.txt | xcull -x > raw_dedup.txt
+Input:
+
+```
+https://example.com/api/v1/users
+https://example.com/<script>alert(1)</script>
+https://example.com/api/v1/users/../../etc/passwd
+https://example.com/api/v1/users?cmd=ls
 ```
 
-`-x` disables the garbage gate (glued TLDs, embedded-domain probes,
-malformed bytes, scanner artifacts) but keeps the structural dedup
-itself. Use it side-by-side with a default run to see which lines were
-classified as junk.
+Default output (garbage gate drops the XSS payload and the path
+traversal; the bare endpoint folds into its decorated sibling):
+
+```
+https://example.com/api/v1/users?cmd=ls
+```
+
+With `-x` (everything survives, only structural dedup runs):
+
+```
+https://example.com/api/v1/users
+https://example.com/<script>alert(1)</script>
+https://example.com/api/v1/users/../../etc/passwd
+https://example.com/api/v1/users?cmd=ls
+```
+
+Use it side-by-side with a default run to see which lines were
+classified as junk:
 
 ```sh
 diff <(cat dirty.txt | xcull) <(cat dirty.txt | xcull -x) | less
@@ -293,15 +327,41 @@ diff <(cat dirty.txt | xcull) <(cat dirty.txt | xcull -x) | less
 **When:** you are hunting for secrets in JS bundles, source maps, or
 static config files that the default render-noise filter would drop.
 
-```sh
-gau example.com | xcull -a | grep -E '\.(js|map|json|env)$'
+Input:
+
+```
+https://example.com/index.html
+https://example.com/static/app.js
+https://example.com/static/style.css
+https://example.com/img/logo.png
+https://example.com/fonts/main.woff2
 ```
 
-Default drops `.css .png .woff .mp4 .mp3 .m4p .svg .ico` and the rest
-of the static-render extensions. `-a` keeps them. Note: `.map` URLs
-are kept under the default too (source maps disclose unminified source
-and are a standing recon finding), so reach for `-a` mainly for the
-other static classes.
+Default output (CSS, PNG, WOFF2 dropped as render-noise; `.js` and the
+canonicalised root survive):
+
+```
+https://example.com/
+https://example.com/static/app.js
+```
+
+With `-a` (every static asset survives):
+
+```
+https://example.com/
+https://example.com/static/app.js
+https://example.com/static/style.css
+https://example.com/img/logo.png
+https://example.com/fonts/main.woff2
+```
+
+`.map` URLs are kept under the default already (source maps disclose
+unminified source and are a standing recon finding), so reach for `-a`
+mainly for the other static classes.
+
+```sh
+gau example.com | xcull -a | grep -E '\.(js|json|env)$'
+```
 
 ### `-s` case-sensitive path matching
 
@@ -309,13 +369,34 @@ other static classes.
 Python/Node frameworks) where `/Admin` and `/admin` are distinct
 routes.
 
-```sh
-cat urls.txt | xcull -s
+Input:
+
+```
+https://example.com/Login
+https://example.com/login
+https://example.com/Admin/panel
+https://example.com/admin/panel
 ```
 
-Default folds path case, so `/Login` and `/login` collide into one
-witness. `-s` keeps them separate. On Apache/IIS/PHP targets the
-default is what you want.
+Default output (case folded, first-seen wins):
+
+```
+https://example.com/Login
+https://example.com/Admin/panel
+```
+
+With `-s` (every case variant survives):
+
+```
+https://example.com/Login
+https://example.com/login
+https://example.com/Admin/panel
+https://example.com/admin/panel
+```
+
+On Apache, IIS, and PHP targets the default is what you want; reach
+for `-s` only when you have reason to believe the backend treats case
+as significant.
 
 ### `-L N` cap subset-merge comparisons (adversarial input)
 
@@ -334,56 +415,145 @@ trips, the record is kept un-merged (output may differ from a full
 run; this is a safety valve, not a quality knob). `0` (default) means
 no cap.
 
+There is no small before/after to show here: on normal input the cap
+never trips, so `-L N` produces byte-identical output to the default.
+The difference only appears once a single path accumulates more than
+`N` distinct key-sets, at which point the over-cap records are emitted
+un-merged instead of being folded.
+
 ### `-k` keep param values and every distinct key-set (value mining)
 
 **When:** you are mining parameter values, not endpoints. You want to
 see every concrete value of `?role=`, `?env=`, `?debug=`, and you
 don't want xcull's query-subset merge to collapse anything.
 
-```sh
-gau example.com | xcull -k | grep -oE '\?[a-z_]+=[^&]+' | sort -u
+Input:
+
 ```
+https://example.com/page?id=1
+https://example.com/page?id=2
+https://example.com/page?id=3
+https://example.com/page?role=admin
+https://example.com/page?debug=true
+```
+
+Default output (one witness per distinct key-set; the three `?id=`
+variants collapse because the key-set is identical):
+
+```
+https://example.com/page?id=1
+https://example.com/page?role=admin
+https://example.com/page?debug=true
+```
+
+With `-k` (every value preserved):
+
+```
+https://example.com/page?id=1
+https://example.com/page?id=2
+https://example.com/page?id=3
+https://example.com/page?role=admin
+https://example.com/page?debug=true
+```
+
+As a side effect, `-k` also restores streaming output (no deferred
+emit), so it is the lowest-RSS mode.
 
 ```sh
 # look for admin / debug / staging param values
 gau example.com | xcull -k | grep -iE '\?(role|env|debug|admin)='
 ```
 
-Default merges `/page?id=1` and `/page?id=2` into one witness because
-the key-set is identical. `-k` keeps both, including the values. As a
-side effect, `-k` also restores streaming output (no deferred emit),
-so it is the lowest-RSS mode.
-
 ### `-p` no path templating (literal paths)
 
 **When:** the target's path segments are meaningful, not templated.
-Docs sites, content portals, knowledge bases where `/docs/install`
-and `/docs/config` are distinct content, not slugs of the same route.
+Docs sites, content portals, knowledge bases where each slug is
+distinct content, not a variant of the same route.
+
+Input:
+
+```
+https://example.com/blog/post-title-1
+https://example.com/blog/post-title-2
+https://example.com/blog/post-title-3
+https://example.com/blog/post-title-4
+https://example.com/blog/post-title-5
+https://example.com/blog/post-title-6
+https://example.com/blog/post-title-7
+https://example.com/blog/post-title-8
+https://example.com/docs/install
+https://example.com/docs/config
+```
+
+Default output (the blog slug group folds to one witness; the two docs
+pages stay distinct because the slug-class threshold is not crossed):
+
+```
+https://example.com/blog/post-title-1
+https://example.com/docs/install
+https://example.com/docs/config
+```
+
+With `-p` (every distinct path survives):
+
+```
+https://example.com/blog/post-title-1
+https://example.com/blog/post-title-2
+https://example.com/blog/post-title-3
+https://example.com/blog/post-title-4
+https://example.com/blog/post-title-5
+https://example.com/blog/post-title-6
+https://example.com/blog/post-title-7
+https://example.com/blog/post-title-8
+https://example.com/docs/install
+https://example.com/docs/config
+```
+
+Use it when you would rather hand off the full path inventory to a
+doc-aware scanner.
 
 ```sh
 gau docs.example.com | xcull -p > docs_paths.txt
 ```
 
-Default folds title-slug groups (`/blog/<slug>` collapses to one
-witness). `-p` disables every path template, including the slug fold.
-Use it when you would rather hand off the full path inventory to a
-doc-aware scanner.
-
 ### `-W` opt out of wayback-noise handling
 
-**When:** the input is from a live crawl (katana, hakrawler, hand
-recon) and not from wayback, so the wayback-noise heuristics are
-overhead with nothing to match. Or, the input IS wayback but you want
-to keep scanner-artifact URLs (e.g., to study prior attacker activity
-recorded by the archive).
+**When:** the input IS from wayback but you want the host left exactly
+as the archive recorded it. By default xcull strips the leading
+percent-encoding glue that wayback prepends to a host (`2f`, `3a`,
+`25252f` and friends), so `2fexample.com` folds onto `example.com`.
+`-W` keeps those raw hosts so you can study how the archive mangled
+them.
 
-```sh
-katana -u https://example.com -silent | xcull -W
+Input:
+
+```
+https://2fexample.com/login
+https://example.com/login
+https://3aexample.com/admin
+https://example.com/admin
+```
+
+Default output (leading wayback glue stripped, so the mangled hosts
+fold onto the clean one):
+
+```
+https://example.com/login
+https://example.com/admin
+```
+
+With `-W` (raw hosts, nothing folded):
+
+```
+https://2fexample.com/login
+https://example.com/login
+https://3aexample.com/admin
+https://example.com/admin
 ```
 
 ```sh
-# keep wayback's scanner probes (for threat-intel work)
-waybackurls example.com | xcull -W | grep -E '(\.\./|/etc/passwd|<script>)'
+# keep the archive's raw host glue (for threat-intel / forensic work)
+waybackurls example.com | xcull -W
 ```
 
 ### `-r` opt out of URL canonicalization
@@ -392,19 +562,55 @@ waybackurls example.com | xcull -W | grep -E '(\.\./|/etc/passwd|<script>)'
 is already RFC 3986 normalized, or you are debugging an encoding issue
 xcull's canonicaliser might be hiding.
 
+Input:
+
+```
+https://example.com:443/api/users
+https://example.com/login%2Fadmin
+http://example.com:80/page
+```
+
+Default output (default ports stripped, percent-encoded slash kept as
+a literal char):
+
+```
+https://example.com/api/users
+https://example.com/login%2Fadmin
+http://example.com/page
+```
+
+With `-r` (no canonicalization; default ports preserved):
+
+```
+https://example.com:443/api/users
+https://example.com/login%2Fadmin
+http://example.com:80/page
+```
+
 ```sh
 cat urls.txt | xcull -r | diff - <(cat urls.txt | xcull)
 ```
 
-Default applies percent-decode for safe bytes, normalises default
-ports, lowercases hosts, and resolves `.` / `..` segments. `-r`
-disables all of that and emits the first-seen line verbatim.
-
 ### `-V` verbose stats (CI, monitoring)
 
 **When:** you want a one-line summary of the run (input lines, output
-lines, peak RSS) for logs, CI, or a quick sanity check. Stdout is
-unchanged, so `-V` is safe to leave on in production pipelines.
+lines, peak RSS) for logs, CI, or a quick sanity check. The difference
+is on stderr; stdout is byte-identical to a default run, so `-V` is
+safe to leave on in production pipelines.
+
+Default (no `-V`) writes nothing to stderr:
+
+```
+$ cat urls.txt | xcull > /dev/null
+$
+```
+
+With `-V`, one line lands on stderr at end of run:
+
+```
+$ cat urls.txt | xcull -V > /dev/null
+xcull: 782143 -> 55920  (peak RSS 22612 KB)
+```
 
 ```sh
 gau example.com | xcull -V > urls.txt 2>> xcull.log
