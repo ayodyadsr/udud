@@ -49,6 +49,28 @@
 
 ## Installation
 
+### Quick install (Linux x86_64 / arm64)
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/xcull/xcull/main/install.sh | sh
+```
+
+Downloads the latest release, verifies its `sha256`, and installs to
+`/usr/local/bin`. Honors `PREFIX` (e.g. `PREFIX=$HOME/.local`) and
+`XCULL_VERSION=vX.Y.Z` to pin a tag. Prefer to read before you run?
+`curl -fsSL .../install.sh | less` first; the binary it fetches is the
+same checksummed release tarball as below.
+
+### Docker
+
+```sh
+docker build -t xcull .
+gau example.com | docker run -i --rm xcull > urls.txt
+```
+
+A static musl build copied into a `scratch` image: nothing in it but the
+binary, so it runs anywhere and stays tiny.
+
 ### Prebuilt binary
 
 Download the latest release for your platform from

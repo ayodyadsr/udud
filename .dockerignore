@@ -1,0 +1,10 @@
+.git
+.github
+.claude
+demo
+results
+tests
+*.gif
+*.txt
+xcull
+runstat
