@@ -27,8 +27,9 @@ jobs:
 
       - name: build
         run: |
-          cc ${{ matrix.cflags }} -o xcull xcull.c
+          make CFLAGS="${{ matrix.cflags }}"
           strip xcull
+          ./xcull --version | head -n1
           printf 'http://example.com/a?id=1\nhttp://example.com/a?id=2\n' | ./xcull
 
       - name: package
