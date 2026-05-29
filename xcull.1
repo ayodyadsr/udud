@@ -1,4 +1,4 @@
-.TH XCULL 1 "2026-05-28" "xcull 2.0.0" "User Commands"
+.TH XCULL 1 "2026-05-29" "xcull 2.1.0" "User Commands"
 .SH NAME
 xcull \- security-aware URL deduplicator for recon pipelines
 .SH SYNOPSIS
@@ -32,7 +32,10 @@ and parameter miners.
 The default policy is keep-biased and security-aware: every distinct
 numeric, UUID, hex, and alphanumeric object identifier survives the
 dedup, every distinct session token is preserved, and dedup is keyed
-on the query parameter shape rather than the raw query string.
+on the query parameter shape rather than the raw query string. Query
+parameter order is normalized, but a repeated parameter name
+.RB ( ?id=1&id=2 )
+survives as distinct HTTP Parameter Pollution surface.
 Templating, asset filtering, and wayback / scanner-probe noise removal
 are on by default; each can be turned off by a flag.
 .SH OPTIONS

@@ -2,8 +2,9 @@
  *
  * Default: signature-keyed dedup with object-id PRESERVE (numeric / UUID /
  * hex IDs survive for IDOR / BOLA enumeration), distinct session tokens
- * survive, query merge is subset-only on the same templated path, bare
- * endpoints fold against decorated siblings, .map URLs are kept, render-
+ * survive, query merge is subset-only on the same templated path, a
+ * repeated parameter name (?id=1&id=2) survives as distinct HPP surface,
+ * bare endpoints fold against decorated siblings, .map URLs are kept, render-
  * noise / scanner-probe / wayback-glue URLs are dropped, paths are
  * canonicalized case-insensitively, hosts are normalized.
  * Opt-outs: -F fold object-ids | -x keep invalid/scan-artefact URLs |
@@ -25,7 +26,7 @@
 #include <sys/utsname.h>
 #include <getopt.h>
 
-#define XCULL_VERSION "2.0.0"
+#define XCULL_VERSION "2.1.0"
 /* build flags are injected by the Makefile; fall back for a bare cc build. */
 #ifndef XCULL_CFLAGS
 #define XCULL_CFLAGS "-O3 -march=native -flto"
@@ -1273,7 +1274,10 @@ static size_t clean_query(const char*q,size_t n,char*out,size_t cap){
         i=te; if(i<n&&q[i]=='&')i++; }
     return o; }
 
-/* sorted unique query keys -> out, returns length */
+/* sorted query keys -> out, returns length. A repeated parameter name is kept
+ * (not collapsed): ?id=1&id=2 -> "id&id", a distinct HTTP-Parameter-Pollution
+ * surface, since front-end and back-end can read different occurrences. Order
+ * is still normalised, so ?id=&token= and ?token=&id= still merge. */
 static size_t query_keys(const char*q,size_t n,char*out,size_t cap){
     const char*ks[256]; size_t kl[256]; int kc=0; size_t i=0;
     while(i<n&&kc<256){ size_t s=i;
@@ -1289,10 +1293,10 @@ static size_t query_keys(const char*q,size_t n,char*out,size_t cap){
         while(b>=0){ size_t m=kl[b]<k?kl[b]:k; int c=memcmp(ks[b],kp,m);
             if(c>0||(c==0&&kl[b]>k)){ks[b+1]=ks[b];kl[b+1]=kl[b];b--;} else break; }
         ks[b+1]=kp; kl[b+1]=k; }
-    size_t o=0; const char*pv=NULL; size_t pl=0;
-    for(int a=0;a<kc;a++){ if(pv&&pl==kl[a]&&!memcmp(pv,ks[a],pl))continue;
+    size_t o=0;
+    for(int a=0;a<kc;a++){
         if(o&&o<cap)out[o++]='&';
-        for(size_t z=0;z<kl[a]&&o<cap;z++)out[o++]=ks[a][z]; pv=ks[a]; pl=kl[a]; }
+        for(size_t z=0;z<kl[a]&&o<cap;z++)out[o++]=ks[a][z]; }
     return o; }
 
 /* curl-style help: -h / --help prints the short form, --help all (or
@@ -1304,8 +1308,9 @@ static void print_help(int all){
 "\n"
 "Dedup a recon URL surface on stdin and write the kept set to stdout.\n"
 "Keep-biased and security-aware: distinct object ids and session tokens\n"
-"survive, query dedup is keyed on parameter shape, render and scanner\n"
-"noise is dropped. Pairs with gau, waybackurls, katana, qsreplace, anew.\n"
+"survive, query dedup is keyed on parameter shape (a repeated parameter\n"
+"name survives as distinct HPP surface), render and scanner noise is\n"
+"dropped. Pairs with gau, waybackurls, katana, qsreplace, anew.\n"
 "\n"
 "Options:\n"
 " -F              Fold object ids to one route witness (route discovery)\n"
@@ -1373,8 +1378,9 @@ static void print_version(void){
     printf("xcull %s built on %s %s.\n\n", XCULL_VERSION, sys, mach);
     fputs(
 "Capabilities (all compiled in, libc only, no runtime dependencies):\n"
-" +idor-preserve  +session-preserve  +query-shape-dedup  +subset-merge\n"
-" +garbage-gate   +wayback-clean     +case-fold          +canonical\n"
+" +idor-preserve  +session-preserve  +hpp-preserve     +query-shape-dedup\n"
+" +subset-merge   +garbage-gate      +wayback-clean    +case-fold\n"
+" +canonical\n"
 "\n",
     stdout);
     printf("Build:\n    %s\n    %s\n    built %s\n\n",
@@ -1384,8 +1390,10 @@ static void print_version(void){
     fputs(
 "Default policy:\n"
 "    Distinct object ids and session tokens survive; query dedup is\n"
-"    keyed on parameter shape; render and scanner noise is dropped;\n"
-"    hosts are normalized and paths canonicalized case-insensitively.\n"
+"    keyed on parameter shape, but a repeated parameter name survives as\n"
+"    distinct HTTP-parameter-pollution surface; render and scanner noise\n"
+"    is dropped; hosts are normalized and paths canonicalized\n"
+"    case-insensitively.\n"
 "\n"
 "License XSAL v1.0 (source-available, custom; see LICENSE.md).\n"
 "Commercial and OEM licensing: XCOL.md.\n"
@@ -1720,7 +1728,7 @@ int main(int argc,char**argv){
              * existing records (an antichain of maximal key-sets). */
             size_t ks_off=ksa_put(sig+qstart,o-qstart); unsigned ks_len=(unsigned)(o-qstart);
             size_t gs=gtab_slot(sig,qstart);
-            /* cardinality = number of unique '&'-joined keys (>=1 here) */
+            /* cardinality = number of '&'-joined keys (>=1 here) */
             unsigned card=1; for(unsigned z=0;z<ks_len;z++) if(ksa[ks_off+z]=='&') card++;
             int subsumed=0, tb=-1; long cmps=0;
             for(int b=gtab[gs].head; b!=-1; b=buckets[b].bnext){

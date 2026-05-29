@@ -1,0 +1,2 @@
+https://example.com/api/user?id=1&id=2
+https://example.com/api/user?id=1&token=abc

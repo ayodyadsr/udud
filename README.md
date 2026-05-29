@@ -44,6 +44,7 @@
 - Preserves every distinct object identifier (numeric, UUID, hex) for IDOR and BOLA enumeration.
 - Preserves every distinct session token for session-bound authorization testing.
 - Deduplicates on query parameter shape, not raw query string.
+- Preserves repeated parameter names (`?id=1&id=2`) as distinct HTTP Parameter Pollution surface.
 - Path templating folds repetitive slug variations without merging distinct endpoints.
 - Filters binary assets, wayback noise, and scanner-probe URLs by default.
 
@@ -70,7 +71,7 @@ gau example.com | docker run -i --rm ghcr.io/xcull/xcull > urls.txt
 ```
 
 `docker run` pulls `ghcr.io/xcull/xcull:latest` on first use; pin a release
-with `:2.0.0`. Prefer to build it yourself:
+with `:2.1.0`. Prefer to build it yourself:
 
 ```sh
 docker build -t xcull .
@@ -280,7 +281,9 @@ In default mode every distinct object id (`/user/41`, `/user/42`),
 session token (`;jsessionid=...`), and GraphQL operation
 (`?query={me{id}}`) survives, query URLs merge only by subset
 relation, render-noise assets are dropped, and wayback / scanner-probe
-junk is filtered.
+junk is filtered. Query order is normalized so `?id=1&token=a` and
+`?token=b&id=2` merge, but a repeated parameter name (`?id=1&id=2`)
+survives as distinct HTTP Parameter Pollution surface.
 
 ### `-F` fold object ids (route discovery)
 
@@ -670,11 +673,12 @@ policy, and the license, then exits.
 
 ```
 $ xcull --version
-xcull 2.0.0 built on Linux x86_64.
+xcull 2.1.0 built on Linux x86_64.
 
 Capabilities (all compiled in, libc only, no runtime dependencies):
- +idor-preserve  +session-preserve  +query-shape-dedup  +subset-merge
- +garbage-gate   +wayback-clean     +case-fold          +canonical
+ +idor-preserve  +session-preserve  +hpp-preserve     +query-shape-dedup
+ +subset-merge   +garbage-gate      +wayback-clean    +case-fold
+ +canonical
 
 Build:
     -O3 -march=native -flto

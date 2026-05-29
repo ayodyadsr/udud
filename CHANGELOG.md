@@ -4,6 +4,23 @@ User-visible release log. For the verification matrix behind each entry
 (which inputs and flag combinations were checked), follow the
 corresponding tag in git history.
 
+## v25.0 - HTTP parameter pollution preserve (2.1.0)
+A repeated query parameter name now survives by default as distinct
+attack surface. Before, `?id=1&id=2` had its key list collapsed to the
+unique set `{id}` and was then dropped as a proper subset of a sibling
+like `{id,token}`, deleting the HTTP Parameter Pollution (HPP) vector.
+v25 keeps the repetition in the keyset signature (`id&id`), which is
+incomparable to both `{id}` and `{id,token}`, so the polluted request
+survives alongside them.
+
+Scope is tight and shape-based, no key-name list. Query order is still
+normalized, so `?id=1&token=a` and `?token=b&id=2` still merge to one
+witness (same parameter NAME-set, order is not significant in HTTP).
+Only URLs carrying a repeated parameter name change; every other line is
+byte-identical to v24. `-k` (full query) was already value-distinct and
+is unchanged; `-x` (raw) shares the keyset signature and now also
+preserves HPP URLs.
+
 ## v24.0 - help and version flags (2.0.0)
 Add a curl/wget-style help and version surface.
 
