@@ -63,13 +63,22 @@ same checksummed release tarball as below.
 
 ### Docker
 
+Pull the prebuilt multi-arch image (linux/amd64 + arm64), no build needed:
+
+```sh
+gau example.com | docker run -i --rm ghcr.io/xcull/xcull > urls.txt
+```
+
+`docker run` pulls `ghcr.io/xcull/xcull:latest` on first use; pin a release
+with `:2.0.0`. Prefer to build it yourself:
+
 ```sh
 docker build -t xcull .
 gau example.com | docker run -i --rm xcull > urls.txt
 ```
 
-A static musl build copied into a `scratch` image: nothing in it but the
-binary, so it runs anywhere and stays tiny.
+Either way it is a static musl build copied into a `scratch` image: nothing
+in it but the binary, so it runs anywhere and stays tiny.
 
 ### Prebuilt binary
 
