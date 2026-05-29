@@ -9,7 +9,7 @@
  * Opt-outs: -F fold object-ids | -x keep invalid/scan-artefact URLs |
  *           -a keep all assets | -s case-sensitive path | -W keep raw
  *           hosts | -r raw first-seen | -k keep param values + every
- *           distinct key-set | -p no path templating | -V stats.
+ *           distinct key-set | -p no path templating | -v stats.
  *
  * Release notes: see CHANGELOG.md. Build: make (or cc -O3 -march=native
  * -flto -o xcull xcull.c). License: XSAL v1.0 (LICENSE.md); commercial /
@@ -22,8 +22,24 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/resource.h>
+#include <sys/utsname.h>
+#include <getopt.h>
 
-#define XCULL_VERSION "1.1.0"
+#define XCULL_VERSION "2.0.0"
+/* build flags are injected by the Makefile; fall back for a bare cc build. */
+#ifndef XCULL_CFLAGS
+#define XCULL_CFLAGS "-O3 -march=native -flto"
+#endif
+#ifndef XCULL_LDFLAGS
+#define XCULL_LDFLAGS ""
+#endif
+#if defined(__clang__)
+#define XCULL_CC "clang " __clang_version__
+#elif defined(__GNUC__)
+#define XCULL_CC "gcc " __VERSION__
+#else
+#define XCULL_CC __VERSION__
+#endif
 
 /* ---------- ASCII lowercase LUT (v15: tolower hot-path replacement) ---------- *
  * tolower(3) is locale-aware (TLS lookup + per-call dispatch on glibc). On the
@@ -1301,9 +1317,9 @@ static void print_help(int all){
 " -p              No path templating (every literal path survives)\n"
 " -W              Disable wayback host-glue handling\n"
 " -r              Disable URL canonicalization (RFC 3986)\n"
-" -V              Verbose: write \"<in> -> <out>  (peak RSS)\" to stderr\n"
+" -v, --verbose   Write \"<in> -> <out>  (peak RSS)\" stats to stderr\n"
 " -h, --help      Show this help (use \"--help all\" for examples)\n"
-"     --version   Show version number and quit\n",
+" -V, --version   Show version number and build info, then quit\n",
     stdout);
     if(all){
         fputs(
@@ -1331,8 +1347,8 @@ static void print_help(int all){
 "        -W  keep the archive's raw host glue (forensic).\n"
 "  cat urls.txt | xcull -r > raw.txt\n"
 "        -r  no canonicalization; ports and %-escapes kept verbatim.\n"
-"  cat urls.txt | xcull -V > out.txt\n"
-"        -V  show the reduction (stats on stderr, data on stdout).\n"
+"  cat urls.txt | xcull -v > out.txt\n"
+"        -v  show the reduction (stats on stderr, data on stdout).\n"
 "\n"
 "Exit codes:\n"
 "  0   Success.\n"
@@ -1348,17 +1364,56 @@ static void print_help(int all){
     fputs("\nProject: https://github.com/xcull/xcull\n", stdout);
 }
 
+/* wget-style --version / -V: name + platform, compiled-in capabilities,
+ * the actual build and link flags (injected by the Makefile), the default
+ * dedup policy, license, and where to send bug reports. */
+static void print_version(void){
+    struct utsname u; const char *sys="unknown", *mach="";
+    if(uname(&u)==0){ sys=u.sysname; mach=u.machine; }
+    printf("xcull %s built on %s %s.\n\n", XCULL_VERSION, sys, mach);
+    fputs(
+"Capabilities (all compiled in, libc only, no runtime dependencies):\n"
+" +idor-preserve  +session-preserve  +query-shape-dedup  +subset-merge\n"
+" +garbage-gate   +wayback-clean     +case-fold          +canonical\n"
+"\n",
+    stdout);
+    printf("Build:\n    %s\n    %s\n    built %s\n\n",
+        XCULL_CFLAGS, XCULL_CC, __DATE__);
+    printf("Link:\n    %s\n\n",
+        XCULL_LDFLAGS[0] ? XCULL_LDFLAGS : "(none)");
+    fputs(
+"Default policy:\n"
+"    Distinct object ids and session tokens survive; query dedup is\n"
+"    keyed on parameter shape; render and scanner noise is dropped;\n"
+"    hosts are normalized and paths canonicalized case-insensitively.\n"
+"\n"
+"License XSAL v1.0 (source-available, custom; see LICENSE.md).\n"
+"Commercial and OEM licensing: XCOL.md.\n"
+"This software is provided WITHOUT WARRANTY, to the extent permitted\n"
+"by law.\n"
+"\n"
+"Written by the xcull project.\n"
+"Bug reports and questions: https://github.com/xcull/xcull/issues\n",
+    stdout);
+}
+
 int main(int argc,char**argv){
-    int F=1,S=0,K=0,P=0,W=1,C=1,V=0,X=0,FI=0,c; /* clean defaults: sanity gate +
+    int F=1,S=0,K=0,P=0,W=1,C=1,VB=0,X=0,FI=0,c; /* clean defaults: sanity gate +
                                        noise-filter + case-fold + wayback +
                                        canonical (X=0 means gate ENABLED).
                                        FI=0: object-ids PRESERVED (v18) */
-    /* long options handled before getopt: -h / --help [all], --version. */
-    for(int i=1;i<argc;i++){
-        if(!strcmp(argv[i],"-h")||!strcmp(argv[i],"--help")){
-            print_help((i+1<argc)&&!strcmp(argv[i+1],"all")); return 0; }
-        if(!strcmp(argv[i],"--version")){ puts("xcull " XCULL_VERSION); return 0; } }
-    while((c=getopt(argc,argv,"fkpwcWrasxVFL:"))!=-1){
+    /* --help [all] / -h [all] take an optional positional "all" word that
+     * getopt cannot model, so catch that form here; bare -h/--help,
+     * -V/--version, -v/--verbose all go through getopt_long below. */
+    for(int i=1;i<argc;i++)
+        if((!strcmp(argv[i],"-h")||!strcmp(argv[i],"--help"))
+           && i+1<argc && !strcmp(argv[i+1],"all")){ print_help(1); return 0; }
+    static const struct option lopt[]={
+        {"verbose",no_argument,0,'v'},
+        {"help",   no_argument,0,'h'},
+        {"version",no_argument,0,'V'},
+        {0,0,0,0} };
+    while((c=getopt_long(argc,argv,"fkpwcWrasxvVhFL:",lopt,NULL))!=-1){
         if(c=='k')K=1; else if(c=='p')P=1;
         else if(c=='a')F=0;                          /* keep ALL assets */
         else if(c=='s')S=1;                          /* case-sensitive path */
@@ -1367,7 +1422,9 @@ int main(int argc,char**argv){
         else if(c=='L')g_merge_cap=strtol(optarg,NULL,10); /* subset-cmp cap (0=off) */
         else if(c=='W')W=0; else if(c=='r')C=0;      /* opt-outs */
         else if(c=='f'||c=='w'||c=='c'){ /* legacy no-ops (already default) */ }
-        else if(c=='V')V=1;
+        else if(c=='v')VB=1;                         /* verbose stats */
+        else if(c=='h'){ print_help(0); return 0; }
+        else if(c=='V'){ print_version(); return 0; }
         else { fprintf(stderr,"Try 'xcull --help' for the full option list.\n");
           return 2; } }
     if(isatty(STDIN_FILENO)){
@@ -1737,7 +1794,7 @@ int main(int argc,char**argv){
             pos += hl+slen;
         }
     }
-    if(V){ struct rusage ru; getrusage(RUSAGE_SELF,&ru);
+    if(VB){ struct rusage ru; getrusage(RUSAGE_SELF,&ru);
         fprintf(stderr,"xcull: %llu -> %llu  (peak RSS %ld KB)\n",total,kept,ru.ru_maxrss); }
     return 0;
 }

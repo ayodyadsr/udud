@@ -11,7 +11,8 @@ Open a GitHub issue at https://github.com/xcull/xcull/issues with:
   that triggers it - five lines beats five thousand),
 - the actual output,
 - the output you expected,
-- `xcull -V` output if relevant (it prints peak RSS and in/out counts).
+- `xcull -v` output if relevant (it prints peak RSS and in/out counts),
+  and `xcull -V` (the version/build block) so the build is on record.
 
 Single-line repros land fastest. If the bug is "this URL got dropped",
 the issue body is one line of input plus the expected one-line output.

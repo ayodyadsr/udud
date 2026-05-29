@@ -137,9 +137,9 @@ full flag list:
 ```
 usage: xcull [-F fold-ids][-x keep-invalid][-a keep-assets]
              [-s case-sensitive][-L N subset-cmp cap]
-             [-k][-p][-W][-r][-V]
+             [-k][-p][-W][-r][-v]
        xcull {-h | --help [all]}
-       xcull --version
+       xcull {-V | --version}
 
   -F     fold object-ids (numeric/UUID/hex/stem-id segments collapse
          to one witness). Default keeps every distinct id; -F is the
@@ -158,9 +158,10 @@ usage: xcull [-F fold-ids][-x keep-invalid][-a keep-assets]
   -p     no path templating at all (also drops the title-slug fold).
   -W     opt out of wayback-noise handling.
   -r     opt out of URL canonicalization.
-  -V     print "xcull: <in> -> <out> (peak RSS <n> KB)" to stderr.
-  -h, --help   print the option list (--help all adds examples and
-               exit codes); --version prints the version and exits.
+  -v, --verbose  print "xcull: <in> -> <out> (peak RSS <n> KB)" to stderr.
+  -h, --help     print the option list (--help all adds examples and
+                 exit codes).
+  -V, --version  print version, build info, and license, then exit.
 ```
 
 ## Running xcull
@@ -226,7 +227,7 @@ gau example.com | xcull | qsreplace FUZZ | anew params.txt
 
 ```sh
 # show the reduction (stats on stderr, data still on stdout)
-cat urls.txt | xcull -V > deduped.txt
+cat urls.txt | xcull -v > deduped.txt
 ```
 
 ## Flag use cases
@@ -413,7 +414,7 @@ bucket; an adversarial multi-cardinality antichain can still cost real
 time.
 
 ```sh
-cat fuzzer_dump.txt | xcull -L 100 -V
+cat fuzzer_dump.txt | xcull -L 100 -v
 ```
 
 `-L N` caps comparisons per inserted record at `N`. When the cap
@@ -597,37 +598,61 @@ http://example.com:80/page
 cat urls.txt | xcull -r | diff - <(cat urls.txt | xcull)
 ```
 
-### `-V` verbose stats (CI, monitoring)
+### `-v`, `--verbose` stats (CI, monitoring)
 
 **When:** you want a one-line summary of the run (input lines, output
 lines, peak RSS) for logs, CI, or a quick sanity check. The difference
-is on stderr; stdout is byte-identical to a default run, so `-V` is
+is on stderr; stdout is byte-identical to a default run, so `-v` is
 safe to leave on in production pipelines.
 
-Default (no `-V`) writes nothing to stderr:
+Default (no `-v`) writes nothing to stderr:
 
 ```
 $ cat urls.txt | xcull > /dev/null
 $
 ```
 
-With `-V`, one line lands on stderr at end of run:
+With `-v`, one line lands on stderr at end of run:
 
 ```
-$ cat urls.txt | xcull -V > /dev/null
+$ cat urls.txt | xcull -v > /dev/null
 xcull: 782143 -> 55920  (peak RSS 22612 KB)
 ```
 
 ```sh
-gau example.com | xcull -V > urls.txt 2>> xcull.log
+gau example.com | xcull -v > urls.txt 2>> xcull.log
 ```
 
 ```sh
 # CI assertion: dedup ratio should be at least 5x
 in=$(wc -l < urls.txt)
-out=$(xcull -V < urls.txt 2>&1 > deduped.txt | awk '{print $4}')
+out=$(xcull -v < urls.txt 2>&1 > deduped.txt | awk '{print $4}')
 test $(( in / out )) -ge 5 || { echo "dedup too weak"; exit 1; }
 ```
+
+### `-V`, `--version` build info
+
+**When:** you need to record exactly which build produced a result, or
+file a bug. Like `wget --version`, this prints the version, platform,
+compiled-in capabilities, the actual build and link flags, the default
+policy, and the license, then exits.
+
+```
+$ xcull --version
+xcull 2.0.0 built on Linux x86_64.
+
+Capabilities (all compiled in, libc only, no runtime dependencies):
+ +idor-preserve  +session-preserve  +query-shape-dedup  +subset-merge
+ +garbage-gate   +wayback-clean     +case-fold          +canonical
+
+Build:
+    -O3 -march=native -flto
+    gcc 14.2.0
+    built May 28 2026
+...
+```
+
+`-V` and `--version` are equivalent.
 
 ## Output
 
@@ -643,20 +668,21 @@ The deduped URL set. Pipe it to a file, a tool that reads from stdin
 cat urls.txt | xcull > deduped.txt
 ```
 
-### stderr (`-V`)
+### stderr (`-v`)
 
-With `-V`, xcull prints a single summary line to stderr after the run:
+With `-v` (or `--verbose`), xcull prints a single summary line to
+stderr after the run:
 
 ```
 xcull: 782143 -> 55920 (peak RSS 22612 KB)
 ```
 
 The numbers are: input lines read, output lines emitted, peak resident
-set size in kilobytes. stdout is unaffected, so `-V` is safe to add to
+set size in kilobytes. stdout is unaffected, so `-v` is safe to add to
 production pipelines.
 
 ```sh
-cat urls.txt | xcull -V > deduped.txt
+cat urls.txt | xcull -v > deduped.txt
 # stderr: xcull: 782143 -> 55920 (peak RSS 22612 KB)
 ```
 

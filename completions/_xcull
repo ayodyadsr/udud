@@ -9,11 +9,14 @@ _xcull() {
         '-x[keep invalid URLs, no cleaning]' \
         '-a[keep all assets (do not filter images/fonts/css/audio/video)]' \
         '-s[case-sensitive path matching]' \
+        '-L[cap subset-merge comparisons per record (0=off)]:N:' \
         '-k[keep param values and every distinct query key-set]' \
         '-p[no path templating (also drops title-slug fold)]' \
         '-W[opt out of wayback-noise handling]' \
         '-r[opt out of URL canonicalization]' \
-        '-V[print "in -> out (peak RSS)" stats to stderr]' \
+        '(-v --verbose)'{-v,--verbose}'[print "in -> out (peak RSS)" stats to stderr]' \
+        '(-h --help)'{-h,--help}'[show help (use --help all for examples)]' \
+        '(-V --version)'{-V,--version}'[print version and build info, then exit]' \
         '*:file:_files'
 }
 

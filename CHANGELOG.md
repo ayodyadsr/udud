@@ -4,14 +4,24 @@ User-visible release log. For the verification matrix behind each entry
 (which inputs and flag combinations were checked), follow the
 corresponding tag in git history.
 
-## v24.0 - help and version flags
-Add a curl-style help system. `xcull --help` (or `-h`) prints the option
-list to stdout and exits 0; `xcull --help all` (or `-h all`) appends usage
-examples and the exit-code table; `xcull --version` prints the version.
-A bare invocation on a terminal now prints a one-line "pipe URLs in" hint
-instead of silently blocking on the TTY, and an unknown flag points at
-`--help`. Dedup output is byte-identical to v23 for every flag and input;
-this release only adds the help/version surface.
+## v24.0 - help and version flags (2.0.0)
+Add a curl/wget-style help and version surface.
+
+BREAKING: `-V` now prints the version, not verbose stats. Verbose stats
+moved to `-v` (or `--verbose`). This aligns xcull with curl and wget,
+where `-V` is version. Scripts using `xcull -V` for stats must switch to
+`xcull -v`.
+
+`xcull --help` (or `-h`) prints the option list to stdout and exits 0;
+`xcull --help all` (or `-h all`) appends usage examples and the exit-code
+table. `xcull -V` / `--version` prints a wget-style block: version,
+platform, compiled-in capabilities, the actual build and link flags,
+default policy, and license. A bare invocation on a terminal now prints a
+one-line "pipe URLs in" hint instead of silently blocking on the TTY, and
+an unknown flag points at `--help`.
+
+Dedup output is byte-identical to v23 for every flag and input; this
+release only changes the CLI surface.
 
 ## v23.0 - GraphQL queries
 Keep distinct GraphQL `?query={...}` values. Previously the literal

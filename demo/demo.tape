@@ -11,6 +11,10 @@ Set Padding 18
 Set TypingSpeed 35ms
 Set PlaybackSpeed 1.0
 
+Type "xcull --version"
+Enter
+Sleep 2s
+
 Type "# raw recon dump (51 URLs)"
 Enter
 Sleep 600ms
@@ -18,10 +22,10 @@ Type "wc -l demo/urls.txt"
 Enter
 Sleep 1s
 
-Type "# clean it"
+Type "# clean it (-v prints in/out + peak RSS on stderr)"
 Enter
 Sleep 400ms
-Type "cat demo/urls.txt | xcull -V > clean.txt"
+Type "cat demo/urls.txt | xcull -v > clean.txt"
 Enter
 Sleep 1500ms
 

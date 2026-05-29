@@ -14,7 +14,7 @@ body:
     attributes:
       label: Command line
       description: The exact command you ran (flags, redirections, pipes).
-      placeholder: cat in.txt | xcull -V > out.txt
+      placeholder: cat in.txt | xcull -v > out.txt
       render: shell
     validations:
       required: true
@@ -52,8 +52,8 @@ body:
     id: version
     attributes:
       label: xcull version
-      description: Output of `xcull -V` on a dummy input, or the tag you built from.
-      placeholder: v1.0.1
+      description: First line of `xcull -V` (the version/build block), or the tag you built from.
+      placeholder: xcull 2.0.0
     validations:
       required: true
 

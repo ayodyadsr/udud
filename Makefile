@@ -12,7 +12,9 @@ ZSHCOMPDIR  ?= $(PREFIX)/share/zsh/site-functions
 all: xcull
 
 xcull: xcull.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) $(LDFLAGS) \
+	  -DXCULL_CFLAGS='"$(CFLAGS)"' -DXCULL_LDFLAGS='"$(LDFLAGS)"' \
+	  -o $@ $<
 
 runstat: runstat.c
 	$(CC) -O2 -o $@ $<
